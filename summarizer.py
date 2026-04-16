@@ -75,7 +75,9 @@ class Summarizer:
                 "config.py 의 OLLAMA_TIMEOUT 을 늘리거나 더 빠른 모델을 사용하세요."
             )
         except requests.exceptions.HTTPError as exc:
-            raise RuntimeError(f"Ollama HTTP 오류: {exc.response.status_code} – {exc.response.text}")
+            body = exc.response.text if exc.response is not None else "no response"
+            code = exc.response.status_code if exc.response is not None else "?"
+            raise RuntimeError(f"Ollama HTTP 오류: {code} – {body}")
         except Exception as exc:
             raise RuntimeError(f"Ollama 요약 실패: {exc}")
 

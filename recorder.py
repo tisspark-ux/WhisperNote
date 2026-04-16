@@ -68,6 +68,8 @@ class AudioRecorder:
 
             # 장치 기본 샘플레이트 확인
             dev_info = sd.query_devices(device, "input")
+            if dev_info is None:
+                raise RuntimeError("입력 장치를 찾을 수 없습니다.")
             self._actual_samplerate = int(dev_info["default_samplerate"])
 
             self.audio_data = []
