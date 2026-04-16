@@ -12,81 +12,239 @@ from recorder import AudioRecorder
 from summarizer import Summarizer
 from transcriber import Transcriber
 
-# 전역 인스턴스 (모델은 최초 사용 시 로드)
-recorder = AudioRecorder()
+recorder   = AudioRecorder()
 transcriber = Transcriber()
-summarizer = Summarizer()
+summarizer  = Summarizer()
 
+# ---------------------------------------------------------------------------
+# CSS
+# ---------------------------------------------------------------------------
 
-# ===========================================================================
-# 녹음
-# ===========================================================================
+CSS = """
+/* ── 전체 배경 ── */
+body, .gradio-container {
+    background: #0f1117 !important;
+    font-family: 'Inter', 'Pretendard', -apple-system, sans-serif !important;
+}
+
+/* ── 헤더 ── */
+#wn-header {
+    padding: 2.4rem 0 1.6rem;
+    text-align: center;
+    border-bottom: 1px solid #1e2130;
+    margin-bottom: 1.6rem;
+}
+#wn-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: #e8eaf6;
+    margin: 0 0 0.4rem;
+}
+#wn-header p {
+    color: #6b7280;
+    font-size: 0.92rem;
+    margin: 0;
+}
+
+/* ── 카드 ── */
+.wn-card {
+    background: #161b27 !important;
+    border: 1px solid #1e2130 !important;
+    border-radius: 12px !important;
+    padding: 1.2rem 1.4rem !important;
+}
+
+/* ── 섹션 레이블 ── */
+.wn-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #4b5563;
+    margin-bottom: 0.6rem;
+}
+
+/* ── 상태 뱃지 ── */
+#record-status textarea {
+    background: #0d1117 !important;
+    border: 1px solid #1e2130 !important;
+    border-radius: 8px !important;
+    color: #9ca3af !important;
+    font-size: 0.85rem !important;
+}
+
+/* ── 버튼 – 녹음 시작 ── */
+#btn-start {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    height: 48px !important;
+    transition: opacity .2s !important;
+}
+#btn-start:hover { opacity: .85 !important; }
+
+/* ── 버튼 – 녹음 종료 ── */
+#btn-stop {
+    background: linear-gradient(135deg, #ef4444, #f97316) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+    height: 48px !important;
+    transition: opacity .2s !important;
+}
+#btn-stop:hover { opacity: .85 !important; }
+#btn-stop:disabled { opacity: .35 !important; }
+
+/* ── 버튼 – 파이프라인 ── */
+#btn-pipeline {
+    background: linear-gradient(135deg, #0ea5e9, #6366f1) !important;
+    border: none !important;
+    border-radius: 10px !important;
+    color: #fff !important;
+    font-weight: 600 !important;
+    height: 48px !important;
+    width: 100% !important;
+    font-size: 1rem !important;
+    margin-top: 0.4rem !important;
+    transition: opacity .2s !important;
+}
+#btn-pipeline:hover { opacity: .85 !important; }
+
+/* ── 버튼 – 보조 ── */
+.wn-btn-secondary {
+    background: #1e2130 !important;
+    border: 1px solid #2d3348 !important;
+    border-radius: 8px !important;
+    color: #9ca3af !important;
+    font-size: 0.85rem !important;
+    height: 38px !important;
+    transition: background .2s !important;
+}
+.wn-btn-secondary:hover { background: #252b40 !important; color: #e5e7eb !important; }
+
+/* ── 텍스트 박스 (결과) ── */
+.wn-result textarea {
+    background: #0d1117 !important;
+    border: 1px solid #1e2130 !important;
+    border-radius: 10px !important;
+    color: #d1d5db !important;
+    font-size: 0.88rem !important;
+    line-height: 1.7 !important;
+    padding: 1rem !important;
+}
+
+/* ── 드롭다운 ── */
+.wn-dropdown select, .wn-dropdown input {
+    background: #0d1117 !important;
+    border: 1px solid #1e2130 !important;
+    border-radius: 8px !important;
+    color: #d1d5db !important;
+}
+
+/* ── 파일 경로 ── */
+.wn-filepath textarea {
+    background: transparent !important;
+    border: none !important;
+    border-top: 1px solid #1e2130 !important;
+    border-radius: 0 !important;
+    color: #4b5563 !important;
+    font-size: 0.78rem !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    padding: 0.5rem 0 0 !important;
+}
+
+/* ── 구분선 ── */
+.wn-divider {
+    border: none;
+    border-top: 1px solid #1e2130;
+    margin: 1rem 0;
+}
+
+/* ── 탭 ── */
+.tab-nav button {
+    background: transparent !important;
+    border: none !important;
+    color: #6b7280 !important;
+    font-size: 0.9rem !important;
+    font-weight: 500 !important;
+    padding: 0.6rem 1.2rem !important;
+    border-bottom: 2px solid transparent !important;
+    border-radius: 0 !important;
+}
+.tab-nav button.selected {
+    color: #818cf8 !important;
+    border-bottom-color: #818cf8 !important;
+}
+
+/* ── 파이프라인 상태 ── */
+#pipeline-status textarea {
+    background: #0a0f1a !important;
+    border: 1px solid #1e2130 !important;
+    border-radius: 8px !important;
+    color: #6ee7b7 !important;
+    font-size: 0.85rem !important;
+    font-family: 'JetBrains Mono', monospace !important;
+}
+
+/* ── Upload 박스 ── */
+.wn-upload {
+    border: 1.5px dashed #2d3348 !important;
+    border-radius: 10px !important;
+    background: #0d1117 !important;
+}
+.wn-upload:hover { border-color: #6366f1 !important; }
+"""
+
+# ---------------------------------------------------------------------------
+# 로직 함수
+# ---------------------------------------------------------------------------
 
 def handle_start_recording():
     file_path, msg = recorder.start()
     if file_path:
         return (
-            gr.update(interactive=False),   # btn_start
-            gr.update(interactive=True),    # btn_stop
-            msg,                            # record_status
-            file_path,                      # recorded_file
+            gr.update(interactive=False),
+            gr.update(interactive=True),
+            msg,
+            file_path,
         )
-    return (
-        gr.update(interactive=True),
-        gr.update(interactive=False),
-        msg,
-        "",
-    )
+    return (gr.update(interactive=True), gr.update(interactive=False), msg, "")
 
 
 def handle_stop_recording():
     file_path, msg = recorder.stop()
     return (
-        gr.update(interactive=True),    # btn_start
-        gr.update(interactive=False),   # btn_stop
-        msg,                            # record_status
-        file_path or "",                # recorded_file
+        gr.update(interactive=True),
+        gr.update(interactive=False),
+        msg,
+        file_path or "",
     )
 
 
-# ===========================================================================
-# 오디오 소스 선택 헬퍼
-# ===========================================================================
-
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
-    if recorded:
-        return recorded
-    return uploaded
+    return recorded if recorded else uploaded
 
-
-# ===========================================================================
-# 전사 단독 실행
-# ===========================================================================
 
 def handle_transcribe(recorded: str, uploaded: str | None, progress=gr.Progress()):
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
-
     try:
-        status_msgs: list[str] = []
-
-        def on_progress(msg: str):
-            status_msgs.append(msg)
-            progress(0.5, desc=msg)
-
         progress(0.1, desc="전사 시작...")
-        transcript, out_file = transcriber.transcribe(audio, on_progress=on_progress)
+        transcript, out_file = transcriber.transcribe(
+            audio, on_progress=lambda m: progress(0.5, desc=m)
+        )
         progress(1.0, desc="전사 완료!")
-        return transcript, out_file, f"전사 완료: {Path(out_file).name}"
-
+        return transcript, out_file, f"완료 — {Path(out_file).name}"
     except Exception as exc:
         return "", "", f"전사 실패: {exc}"
 
-
-# ===========================================================================
-# 요약 단독 실행
-# ===========================================================================
 
 def handle_summarize(
     transcript: str,
@@ -97,23 +255,16 @@ def handle_summarize(
 ):
     if not transcript:
         return "", "", "먼저 전사를 실행하세요."
-
     audio = _resolve_audio(recorded, uploaded)
     audio_stem = Path(audio).stem if audio else "output"
-
     try:
-        progress(0.2, desc="Ollama에 요약 요청 중...")
+        progress(0.2, desc="Ollama 요약 중...")
         summary, out_file = summarizer.summarize(transcript, audio_stem, model=model_name)
         progress(1.0, desc="요약 완료!")
-        return summary, out_file, f"요약 완료: {Path(out_file).name}"
-
+        return summary, out_file, f"완료 — {Path(out_file).name}"
     except Exception as exc:
         return "", "", f"요약 실패: {exc}"
 
-
-# ===========================================================================
-# 전사 + 요약 파이프라인 (한 번에 실행)
-# ===========================================================================
 
 def handle_pipeline(
     recorded: str,
@@ -124,209 +275,245 @@ def handle_pipeline(
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
-
     try:
-        # 1. 전사
         progress(0.05, desc="전사 시작...")
-
-        def on_transcribe_progress(msg: str):
-            progress(0.3, desc=msg)
-
-        transcript, transcript_file = transcriber.transcribe(audio, on_progress=on_transcribe_progress)
-
+        transcript, t_file = transcriber.transcribe(
+            audio, on_progress=lambda m: progress(0.35, desc=m)
+        )
         if not transcript:
-            return "", transcript_file, "", "", "전사 결과가 비어 있습니다."
+            return "", t_file, "", "", "전사 결과가 비어 있습니다."
 
-        # 2. 요약
         progress(0.7, desc="요약 중...")
-        audio_stem = Path(audio).stem
-        summary, summary_file = summarizer.summarize(transcript, audio_stem, model=model_name)
-
+        summary, s_file = summarizer.summarize(
+            transcript, Path(audio).stem, model=model_name
+        )
         progress(1.0, desc="완료!")
         return (
-            transcript,
-            transcript_file,
-            summary,
-            summary_file,
-            f"완료: {Path(transcript_file).name} / {Path(summary_file).name}",
+            transcript, t_file,
+            summary,   s_file,
+            f"완료 — {Path(t_file).name} / {Path(s_file).name}",
         )
-
     except Exception as exc:
-        return "", "", "", "", f"파이프라인 실패: {exc}"
+        return "", "", "", "", f"실패: {exc}"
 
-
-# ===========================================================================
-# Ollama 모델 목록 새로고침
-# ===========================================================================
 
 def refresh_ollama_models():
     models = summarizer.get_available_models()
     if not models:
-        return gr.update(choices=[OLLAMA_MODEL], value=OLLAMA_MODEL), "Ollama 연결 실패 (서버 미실행?)"
+        return gr.update(choices=[OLLAMA_MODEL], value=OLLAMA_MODEL), "Ollama 연결 실패"
     value = OLLAMA_MODEL if OLLAMA_MODEL in models else models[0]
-    return gr.update(choices=models, value=value), f"모델 {len(models)}개 로드됨"
+    return gr.update(choices=models, value=value), f"모델 {len(models)}개"
 
-
-# ===========================================================================
-# 오디오 장치 목록 조회
-# ===========================================================================
 
 def list_audio_devices():
     return recorder.list_devices()
 
 
-# ===========================================================================
-# Gradio UI
-# ===========================================================================
+# ---------------------------------------------------------------------------
+# UI
+# ---------------------------------------------------------------------------
 
-with gr.Blocks(title="WhisperNote", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
-    gr.Markdown(
-        """
-        # WhisperNote
-        **회의 녹음 → 전사(WhisperX) → 요약(Ollama) 로컬 자동화**
-        """
-    )
+    # ── 헤더 ──
+    gr.HTML("""
+    <div id="wn-header">
+        <h1>WhisperNote</h1>
+        <p>회의 녹음 &nbsp;·&nbsp; 화자 분리 &nbsp;·&nbsp; 전사 &nbsp;·&nbsp; 요약 &nbsp;—&nbsp; 완전 로컬</p>
+    </div>
+    """)
 
-    with gr.Tabs():
+    with gr.Tabs(elem_classes="wn-tabs"):
 
-        # ----------------------------------------------------------------
-        # Tab 1 : 녹음 & 처리
-        # ----------------------------------------------------------------
-        with gr.TabItem("녹음 & 처리"):
-            with gr.Row():
+        # ════════════════════════════════════════════════════════
+        # Tab 1 : 메인
+        # ════════════════════════════════════════════════════════
+        with gr.TabItem("  Studio  "):
+            with gr.Row(equal_height=False, variant="panel"):
 
-                # 왼쪽 컬럼: 컨트롤
-                with gr.Column(scale=1, min_width=320):
+                # ── 왼쪽 컨트롤 패널 ──────────────────────────
+                with gr.Column(scale=1, min_width=300, elem_classes="wn-card"):
 
-                    gr.Markdown("### 녹음")
+                    # 녹음
+                    gr.HTML('<div class="wn-label">녹음</div>')
                     with gr.Row():
-                        btn_start = gr.Button("녹음 시작", variant="primary")
-                        btn_stop  = gr.Button("녹음 종료", variant="stop", interactive=False)
+                        btn_start = gr.Button("● 녹음 시작", elem_id="btn-start")
+                        btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False)
 
-                    record_status = gr.Textbox(label="녹음 상태", interactive=False, value="대기 중")
-                    recorded_file = gr.Textbox(label="녹음 파일", interactive=False, placeholder="(녹음 후 자동 입력)")
+                    record_status = gr.Textbox(
+                        value="대기 중",
+                        interactive=False,
+                        show_label=False,
+                        elem_id="record-status",
+                        lines=1,
+                    )
+                    recorded_file = gr.Textbox(
+                        interactive=False,
+                        show_label=False,
+                        placeholder="녹음 후 파일 경로 자동 표시",
+                        elem_classes="wn-filepath",
+                        lines=1,
+                    )
 
-                    gr.Markdown("### 직접 업로드")
-                    uploaded_file = gr.Audio(label="WAV/MP3 파일 업로드", type="filepath")
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">파일 업로드</div>')
+                    uploaded_file = gr.Audio(
+                        label="",
+                        type="filepath",
+                        elem_classes="wn-upload",
+                    )
 
-                    gr.Markdown("### Ollama 모델")
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">Ollama 모델</div>')
                     with gr.Row():
-                        ollama_model   = gr.Dropdown(
-                            label="모델 선택",
+                        ollama_model = gr.Dropdown(
                             choices=[OLLAMA_MODEL],
                             value=OLLAMA_MODEL,
                             allow_custom_value=True,
+                            show_label=False,
+                            elem_classes="wn-dropdown",
+                            scale=3,
                         )
-                        btn_refresh = gr.Button("새로고침", size="sm")
-                    model_status = gr.Textbox(label="", interactive=False, lines=1)
+                        btn_refresh = gr.Button(
+                            "↻", elem_classes="wn-btn-secondary", scale=1
+                        )
+                    model_status = gr.Textbox(
+                        interactive=False,
+                        show_label=False,
+                        lines=1,
+                        elem_classes="wn-filepath",
+                    )
 
-                    gr.Markdown("### 실행")
+                    gr.HTML('<hr class="wn-divider">')
+                    btn_pipeline = gr.Button(
+                        "전사 + 요약  →",
+                        elem_id="btn-pipeline",
+                    )
                     with gr.Row():
-                        btn_transcribe = gr.Button("전사만 실행", variant="secondary")
-                        btn_pipeline   = gr.Button("전사 + 요약", variant="primary")
-
-                    btn_summarize = gr.Button("요약만 실행 (전사 결과 필요)", variant="secondary")
-
-                # 오른쪽 컬럼: 결과
-                with gr.Column(scale=2):
-
-                    pipeline_status = gr.Textbox(label="처리 상태", interactive=False)
-
-                    with gr.Accordion("전사 결과", open=True):
-                        transcript_output = gr.Textbox(
-                            label="전사문",
-                            lines=14,
-                            interactive=False,
-                            show_copy_button=True,
+                        btn_transcribe = gr.Button(
+                            "전사만", elem_classes="wn-btn-secondary", scale=1
                         )
-                        transcript_file_path = gr.Textbox(label="저장 위치", interactive=False)
-
-                    with gr.Accordion("요약 결과", open=True):
-                        summary_output = gr.Textbox(
-                            label="요약",
-                            lines=14,
-                            interactive=False,
-                            show_copy_button=True,
+                        btn_summarize = gr.Button(
+                            "요약만", elem_classes="wn-btn-secondary", scale=1
                         )
-                        summary_file_path = gr.Textbox(label="저장 위치", interactive=False)
 
-        # ----------------------------------------------------------------
-        # Tab 2 : 설정 안내
-        # ----------------------------------------------------------------
-        with gr.TabItem("설정 안내"):
-            gr.Markdown(
-                """
-                ## config.py 주요 설정
+                # ── 오른쪽 결과 패널 ──────────────────────────
+                with gr.Column(scale=2, elem_classes="wn-card"):
 
-                | 항목 | 기본값 | 설명 |
-                |---|---|---|
-                | `WHISPER_MODEL` | `large-v3` | tiny / base / small / medium / large-v3 |
-                | `WHISPER_LANGUAGE` | `ko` | 전사 언어 코드 |
-                | `WHISPER_DEVICE` | `cuda` | `cuda` (GPU) 또는 `cpu` |
-                | `OLLAMA_MODEL` | `exaone3.5:latest` | 기본 요약 모델 |
-                | `INPUT_SOURCE` | `microphone` | `microphone` 또는 `loopback` |
+                    pipeline_status = gr.Textbox(
+                        value="",
+                        interactive=False,
+                        show_label=False,
+                        placeholder="처리 상태가 여기에 표시됩니다",
+                        lines=1,
+                        elem_id="pipeline-status",
+                    )
 
-                ## 입력 소스
+                    gr.HTML('<div class="wn-label" style="margin-top:.8rem">전사 결과</div>')
+                    transcript_output = gr.Textbox(
+                        lines=13,
+                        interactive=False,
+                        show_label=False,
+                        show_copy_button=True,
+                        placeholder="[SPEAKER_00] [0.0s - 4.2s] 전사 결과가 여기에 표시됩니다...",
+                        elem_classes="wn-result",
+                    )
+                    transcript_file_path = gr.Textbox(
+                        interactive=False,
+                        show_label=False,
+                        lines=1,
+                        elem_classes="wn-filepath",
+                    )
 
-                | 설정값 | 설명 |
-                |---|---|
-                | `microphone` | 기본 마이크 녹음 |
-                | `loopback` | 시스템 오디오 캡처 (Zoom/Teams 등) |
+                    gr.HTML('<div class="wn-label" style="margin-top:1rem">요약 결과</div>')
+                    summary_output = gr.Textbox(
+                        lines=13,
+                        interactive=False,
+                        show_label=False,
+                        show_copy_button=True,
+                        placeholder="## 핵심 내용\n- ...\n\n## 액션아이템\n- ...",
+                        elem_classes="wn-result",
+                    )
+                    summary_file_path = gr.Textbox(
+                        interactive=False,
+                        show_label=False,
+                        lines=1,
+                        elem_classes="wn-filepath",
+                    )
 
-                > **loopback 사용 시**: Windows 사운드 설정 → 녹음 탭 → **Stereo Mix** 활성화 필요
+        # ════════════════════════════════════════════════════════
+        # Tab 2 : 설정 가이드
+        # ════════════════════════════════════════════════════════
+        with gr.TabItem("  설정  "):
+            with gr.Column(elem_classes="wn-card"):
+                gr.Markdown("""
+## config.py 설정 항목
 
-                ## 필수 설치
+| 항목 | 기본값 | 설명 |
+|---|---|---|
+| `WHISPER_MODEL` | `large-v3` | tiny / base / small / medium / large-v3 |
+| `WHISPER_LANGUAGE` | `ko` | 전사 언어 코드 |
+| `WHISPER_DEVICE` | `cuda` | `cuda` 또는 `cpu` |
+| `OLLAMA_MODEL` | `exaone3.5:latest` | 기본 요약 모델 |
+| `INPUT_SOURCE` | `microphone` | `microphone` 또는 `loopback` |
+| `ENABLE_DIARIZATION` | `True` | 화자 분리 사용 여부 |
+| `NUM_SPEAKERS` | `None` | None=자동 감지, 숫자=고정 |
 
-                ```bash
-                pip install -r requirements.txt
-                ```
+## 입력 소스
 
-                ## Ollama 실행
+| 설정 | 설명 |
+|---|---|
+| `microphone` | 기본 마이크 |
+| `loopback` | 시스템 오디오 (Zoom / Teams 캡처) |
 
-                ```bash
-                ollama serve
-                ollama pull exaone3.5:latest
-                ```
-                """
-            )
+> **loopback**: Windows 사운드 설정 → 녹음 탭 → **Stereo Mix** 활성화 필요
 
-            gr.Markdown("### 현재 오디오 입력 장치 목록")
-            btn_list_devices = gr.Button("장치 목록 조회")
-            device_list_output = gr.Textbox(label="입력 장치", lines=8, interactive=False)
-            btn_list_devices.click(list_audio_devices, outputs=device_list_output)
+## 오프라인 동작
 
-    # -----------------------------------------------------------------------
-    # 이벤트 연결
-    # -----------------------------------------------------------------------
+- WhisperX `large-v3` 모델: 최초 실행 시 자동 다운로드 (~3 GB) 후 캐시
+- resemblyzer 가중치: 최초 실행 시 자동 다운로드 (~17 MB) 후 캐시
+- Ollama: `ollama serve` + 모델 pull 후 완전 오프라인
+- **이후 회사 내 인터넷 없이 완전 로컬 실행 가능**
 
+## 빠른 시작
+
+```bash
+pip install -r requirements.txt
+ollama serve
+ollama pull exaone3.5:latest
+python app.py
+```
+                """)
+
+                gr.HTML('<hr class="wn-divider"><div class="wn-label">오디오 입력 장치 목록</div>')
+                btn_list_devices    = gr.Button("장치 목록 조회", elem_classes="wn-btn-secondary")
+                device_list_output  = gr.Textbox(
+                    interactive=False, show_label=False, lines=6,
+                    elem_classes="wn-result"
+                )
+                btn_list_devices.click(list_audio_devices, outputs=device_list_output)
+
+    # ── 이벤트 연결 ──────────────────────────────────────────
     btn_start.click(
         handle_start_recording,
         outputs=[btn_start, btn_stop, record_status, recorded_file],
     )
-
     btn_stop.click(
         handle_stop_recording,
         outputs=[btn_start, btn_stop, record_status, recorded_file],
     )
-
     btn_refresh.click(
         refresh_ollama_models,
         outputs=[ollama_model, model_status],
     )
-
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file],
         outputs=[transcript_output, transcript_file_path, pipeline_status],
     )
-
     btn_pipeline.click(
         handle_pipeline,
         inputs=[recorded_file, uploaded_file, ollama_model],
         outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
     )
-
     btn_summarize.click(
         handle_summarize,
         inputs=[transcript_output, recorded_file, uploaded_file, ollama_model],
@@ -334,9 +521,9 @@ with gr.Blocks(title="WhisperNote", theme=gr.themes.Soft()) as demo:
     )
 
 
-# ===========================================================================
+# ---------------------------------------------------------------------------
 # 진입점
-# ===========================================================================
+# ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
     demo.launch(
