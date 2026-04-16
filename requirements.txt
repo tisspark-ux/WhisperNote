@@ -18,8 +18,8 @@ pyannote.audio==3.4.0  # 4.x 는 whisperx 미지원 (github issue #1241)
 whisperx
 
 # 화자 분리
-webrtcvad-wheels        # webrtcvad C++ 빌드 대체
-resemblyzer
+webrtcvad-wheels        # webrtcvad C++ 빌드 대체 (install.bat 에서 먼저 설치)
+# resemblyzer 는 install.bat 에서 --no-deps 로 별도 설치 (webrtcvad 의존성 충돌 방지)
 scikit-learn
 
 # Ollama HTTP 클라이언트
