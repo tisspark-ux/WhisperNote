@@ -4,27 +4,26 @@ echo  WhisperNote Setup
 echo ======================================
 echo.
 
-:: Python check
-python --version >nul 2>&1
+:: Python version selection (prefer 3.12 > 3.11 > 3.13 > system default)
+set PYTHON_CMD=python
+py -3.13 --version >nul 2>&1
+if not errorlevel 1 set PYTHON_CMD=py -3.13
+py -3.11 --version >nul 2>&1
+if not errorlevel 1 set PYTHON_CMD=py -3.11
+py -3.12 --version >nul 2>&1
+if not errorlevel 1 set PYTHON_CMD=py -3.12
+
+%PYTHON_CMD% --version >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Python not found. Install from https://python.org
     pause & exit /b 1
 )
-for /f "tokens=*" %%i in ('python --version') do echo   %%i
-
-:: Python version warning (3.13+ may have compatibility issues)
-for /f "tokens=2" %%v in ('python --version') do set PY_VER=%%v
-for /f "tokens=2 delims=." %%a in ("%PY_VER%") do set PY_MIN=%%a
-if %PY_MIN% GTR 12 (
-    echo   [WARN] Python %PY_VER% is very new. Recommended: Python 3.11 or 3.12
-    echo   Some packages may fail. Continuing in 5 seconds...
-    timeout /t 5 /nobreak >nul
-)
+for /f "tokens=*" %%i in ('%PYTHON_CMD% --version') do echo   Using %%i
 
 :: Virtual environment
 if not exist ".venv" (
     echo [1/4] Creating virtual environment...
-    python -m venv .venv
+    %PYTHON_CMD% -m venv .venv
 ) else (
     echo [1/4] Virtual environment exists, skipping.
 )
