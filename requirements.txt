@@ -3,6 +3,7 @@
 
 # UI
 gradio>=4.0.0,<5.0.0
+pillow>=10.0.0  # gradio 의존성, 바이너리 휠 강제
 
 # 오디오 녹음
 sounddevice

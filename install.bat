@@ -12,6 +12,16 @@ if errorlevel 1 (
 )
 for /f "tokens=*" %%i in ('python --version') do echo   %%i
 
+:: Python version warning (3.13+ may have compatibility issues)
+for /f "tokens=2" %%v in ('python --version') do set PY_VER=%%v
+for /f "tokens=2 delims=." %%a in ("%PY_VER%") do set PY_MIN=%%a
+if %PY_MIN% GTR 12 (
+    echo   [WARN] Python %PY_VER% is very new. Recommended: Python 3.11 or 3.12
+    echo   Some packages may fail. Download from https://python.org/downloads/
+    echo   Press any key to continue anyway, or close to abort.
+    pause >nul
+)
+
 :: Virtual environment
 if not exist ".venv" (
     echo [1/4] Creating virtual environment...
@@ -23,6 +33,9 @@ if not exist ".venv" (
 set PIP=.venv\Scripts\pip.exe
 set PYTHON=.venv\Scripts\python.exe
 
+:: Upgrade pip first to ensure binary wheel support
+%PYTHON% -m pip install --upgrade pip -q
+
 :: PyTorch (CUDA 13.0 / RTX A4000)
 echo [2/4] Installing PyTorch...
 %PYTHON% -c "import torch" >nul 2>&1
@@ -32,7 +45,7 @@ if not errorlevel 1 (
 )
 %PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 -q
 if errorlevel 1 (
-    echo [ERROR] PyTorch installation failed. Supported Python: 3.9 - 3.12
+    echo [ERROR] PyTorch installation failed.
     pause & exit /b 1
 )
 echo   PyTorch installed.
