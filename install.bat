@@ -53,6 +53,7 @@ echo   PyTorch installed.
 
 :: Other packages
 echo [3/4] Installing packages...
+%PIP% install webrtcvad-wheels -q
 %PIP% install -r requirements.txt -q
 if errorlevel 1 (
     echo [ERROR] Package installation failed.
