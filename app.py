@@ -329,7 +329,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
         # Tab 1 : 메인
         # ════════════════════════════════════════════════════════
         with gr.TabItem("  Studio  "):
-            with gr.Row(equal_height=False, variant="panel"):
+            with gr.Row(equal_height=False):
 
                 # ── 왼쪽 컨트롤 패널 ──────────────────────────
                 with gr.Column(scale=1, min_width=300, elem_classes="wn-card"):
