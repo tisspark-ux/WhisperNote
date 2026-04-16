@@ -20,12 +20,15 @@ if not exist ".venv" (
     echo [1/4] Virtual environment exists, skipping.
 )
 
-:: Use explicit venv pip path to avoid any activation issues
+:: Use explicit venv pip/python paths
 set PIP=.venv\Scripts\pip.exe
 set PYTHON=.venv\Scripts\python.exe
 
-:: Detect CUDA version and install PyTorch
+:: PyTorch — skip if already installed in venv
 echo [2/4] Installing PyTorch...
+%PYTHON% -c "import torch; print('  PyTorch', torch.__version__, 'already installed, skipping.')" 2>nul
+if not errorlevel 1 goto torch_done
+
 set TORCH_IDX=cpu
 set CUDA_MAJ=0
 set CUDA_MIN=0
@@ -34,7 +37,6 @@ nvidia-smi >nul 2>&1
 if errorlevel 1 (
     echo   No NVIDIA GPU detected. Installing CPU version.
 ) else (
-    :: Write nvidia-smi output to temp file for reliable parsing
     nvidia-smi > "%TEMP%\wn_nvsmi.txt" 2>&1
     for /f "tokens=9" %%v in ('findstr "CUDA Version" "%TEMP%\wn_nvsmi.txt"') do set CUDA_VER=%%v
     del "%TEMP%\wn_nvsmi.txt" >nul 2>&1
@@ -49,6 +51,7 @@ if errorlevel 1 (
     if "%CUDA_MAJ%"=="12" (
         if %CUDA_MIN% GEQ 4 set TORCH_IDX=cu124
     )
+    if "%CUDA_MAJ%"=="13" set TORCH_IDX=cu130
     echo   CUDA %CUDA_VER% detected. Using PyTorch index: %TORCH_IDX%
 )
 
@@ -58,13 +61,19 @@ if "%TORCH_IDX%"=="cpu" (
     %PIP% install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/%TORCH_IDX% -q
 )
 if errorlevel 1 (
-    echo [ERROR] PyTorch installation failed.
-    echo   Supported Python: 3.9 - 3.12
+    echo [WARN] torchaudio not available for %TORCH_IDX%, trying without...
+    %PIP% install torch torchvision --extra-index-url https://download.pytorch.org/whl/%TORCH_IDX% -q
+    %PIP% install torchaudio -q
+)
+if errorlevel 1 (
+    echo [ERROR] PyTorch installation failed. Supported Python: 3.9 - 3.12
     pause & exit /b 1
 )
 echo   PyTorch installed.
 
-:: Other packages (torch excluded from requirements.txt)
+:torch_done
+
+:: Other packages
 echo [3/4] Installing packages...
 %PIP% install -r requirements.txt -q
 if errorlevel 1 (
