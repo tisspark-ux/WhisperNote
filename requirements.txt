@@ -1,19 +1,24 @@
 # WhisperNote 의존성
 # torch 는 install.bat 에서 CUDA 버전에 맞게 별도 설치됨 (여기서 제외)
 
+# ffmpeg 바이너리 (whisperx 오디오 로드에 필요, PATH 자동 등록)
+static-ffmpeg
+
 # UI
 gradio>=4.0.0,<5.0.0
-pillow>=10.0.0  # gradio 의존성, 바이너리 휠 강제
+pillow>=10.0.0
 
 # 오디오 녹음
 sounddevice
 soundfile
 numpy
 
-# 전사
+# 전사 (의존성 순서 중요: pyannote 먼저 고정 후 whisperx)
+pyannote.audio==3.4.0  # 4.x 는 whisperx 미지원 (github issue #1241)
 whisperx
 
-# 화자 분리 (resemblyzer + scikit-learn, 완전 오프라인)
+# 화자 분리
+webrtcvad-wheels        # webrtcvad C++ 빌드 대체
 resemblyzer
 scikit-learn
 

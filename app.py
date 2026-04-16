@@ -3,6 +3,10 @@ WhisperNote – 회의 녹음 → 전사 → 요약 자동화
 실행: python app.py
 """
 
+# static-ffmpeg: whisperx 오디오 로드에 필요한 ffmpeg 바이너리를 PATH에 등록
+import static_ffmpeg
+static_ffmpeg.add_paths()
+
 from pathlib import Path
 
 import gradio as gr
