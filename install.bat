@@ -21,10 +21,28 @@ if not exist ".venv" (
 call .venv\Scripts\activate.bat
 
 echo [2/4] Installing PyTorch (CUDA 12.1 for RTX A4000)...
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 -q
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu121 -q
+if errorlevel 1 (
+    echo.
+    echo [ERROR] PyTorch installation failed.
+    echo.
+    echo The company network may be blocking download.pytorch.org
+    echo Please download the wheel files manually on a personal PC:
+    echo.
+    echo   1. Go to: https://download.pytorch.org/whl/cu121
+    echo   2. Download: torch, torchvision, torchaudio for Python 3.10 / win_amd64
+    echo   3. Copy the .whl files into this folder
+    echo   4. Run: pip install torch*.whl torchvision*.whl torchaudio*.whl
+    echo.
+    pause & exit /b 1
+)
 
 echo [3/4] Installing packages...
 pip install -r requirements.txt -q
+if errorlevel 1 (
+    echo [ERROR] Package installation failed.
+    pause & exit /b 1
+)
 
 echo [4/4] Checking Ollama...
 where ollama >nul 2>&1
