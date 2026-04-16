@@ -17,9 +17,8 @@ for /f "tokens=2" %%v in ('python --version') do set PY_VER=%%v
 for /f "tokens=2 delims=." %%a in ("%PY_VER%") do set PY_MIN=%%a
 if %PY_MIN% GTR 12 (
     echo   [WARN] Python %PY_VER% is very new. Recommended: Python 3.11 or 3.12
-    echo   Some packages may fail. Download from https://python.org/downloads/
-    echo   Press any key to continue anyway, or close to abort.
-    pause >nul
+    echo   Some packages may fail. Continuing in 5 seconds...
+    timeout /t 5 /nobreak >nul
 )
 
 :: Virtual environment
