@@ -1,0 +1,44 @@
+from pathlib import Path
+
+# 경로 설정
+BASE_DIR = Path(__file__).parent
+RECORDINGS_DIR = BASE_DIR / "recordings"
+OUTPUTS_DIR = BASE_DIR / "outputs"
+
+# 오디오 설정
+SAMPLE_RATE = 16000
+CHANNELS = 1
+
+# 입력 소스: "microphone" (기본 마이크) 또는 "loopback" (시스템 오디오, Zoom/Teams 등)
+# loopback 사용 시 Windows 사운드 설정에서 "Stereo Mix" 활성화 필요
+INPUT_SOURCE = "microphone"
+LOOPBACK_DEVICE_INDEX = None  # None = 자동 감지, 또는 장치 인덱스(int) 지정
+
+# WhisperX 설정
+WHISPER_MODEL = "large-v3"       # tiny / base / small / medium / large-v3
+WHISPER_LANGUAGE = "ko"           # 전사 언어
+WHISPER_DEVICE = "cuda"           # "cuda" (GPU) 또는 "cpu"
+WHISPER_COMPUTE_TYPE = "float16"  # GPU: "float16" / CPU: "int8"
+WHISPER_BATCH_SIZE = 16
+
+# Ollama 설정
+OLLAMA_BASE_URL = "http://localhost:11434"
+OLLAMA_MODEL = "exaone3.5:latest"   # 기본 모델 (UI에서 변경 가능)
+OLLAMA_TIMEOUT = 300                 # 요약 응답 대기 시간(초)
+
+# 요약 프롬프트
+SUMMARY_PROMPT_TEMPLATE = """다음은 회의 전사문입니다. 아래 형식으로 요약해주세요.
+
+## 핵심 내용
+- 주요 논의 사항을 bullet point로 정리
+
+## 결정 사항
+- 회의에서 결정된 사항 정리 (없으면 "없음")
+
+## 액션아이템
+- 구체적인 액션아이템과 담당자 정리 (없으면 "없음")
+
+---
+전사문:
+{transcript}
+"""

@@ -1,0 +1,19 @@
+# WhisperNote 의존성
+# 설치: pip install -r requirements.txt
+
+# UI
+gradio>=4.0.0
+
+# 오디오 녹음
+sounddevice
+soundfile
+numpy
+
+# 전사 (WhisperX)
+# torch는 https://pytorch.org/get-started/locally/ 에서 GPU 버전 별도 설치 권장
+# 예: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+torch
+whisperx
+
+# Ollama HTTP 클라이언트 (표준 라이브러리 requests 사용)
+requests
