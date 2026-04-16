@@ -1,8 +1,8 @@
 # WhisperNote 의존성
 # torch 는 install.bat 에서 CUDA 버전에 맞게 별도 설치됨 (여기서 제외)
 
-# ffmpeg 바이너리 (whisperx 오디오 로드에 필요, PATH 자동 등록)
-static-ffmpeg
+# ffmpeg 라이브러리 (시스템 ffmpeg 바이너리 불필요 — PyAV가 pip으로 번들 제공)
+av
 
 # UI
 gradio>=4.0.0,<5.0.0

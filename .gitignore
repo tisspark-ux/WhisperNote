@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+recordings/
+outputs/
+
+# WhisperX 모델 캐시 (HuggingFace 최초 다운로드 후 저장 — git 제외)
+models/*
+!models/.gitkeep

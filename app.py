@@ -3,8 +3,14 @@ WhisperNote – 회의 녹음 → 전사 → 요약 자동화
 실행: python app.py
 """
 
+import os
+from pathlib import Path
+
+# WhisperX 모델 캐시를 프로젝트 내 models/ 폴더로 지정 (HuggingFace 최초 다운 후 오프라인 동작)
+os.environ.setdefault("HF_HOME", str(Path(__file__).parent / "models"))
+os.environ.setdefault("TORCH_HOME", str(Path(__file__).parent / "models"))
+
 # 회사 프록시 SSL 인증서 우회 (자체 서명 인증서 체인 오류 방지)
-# whisperx 모델, ffmpeg, resemblyzer 등 최초 다운로드 시 필요
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import requests as _req
@@ -13,11 +19,6 @@ def _no_ssl_verify(self, method, url, **kwargs):
     kwargs.setdefault("verify", False)
     return _orig_req(self, method, url, **kwargs)
 _req.Session.request = _no_ssl_verify
-
-import static_ffmpeg
-static_ffmpeg.add_paths()
-
-from pathlib import Path
 
 import gradio as gr
 
