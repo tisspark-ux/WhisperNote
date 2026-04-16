@@ -23,30 +23,39 @@ call .venv\Scripts\activate.bat
 
 :: Detect CUDA version and install PyTorch
 echo [2/4] Installing PyTorch...
+set TORCH_IDX=cpu
+set CUDA_MAJ=0
+set CUDA_MIN=0
+
 nvidia-smi >nul 2>&1
 if errorlevel 1 (
     echo   No NVIDIA GPU detected. Installing CPU version.
-    pip install torch torchvision torchaudio -q
 ) else (
-    :: Parse CUDA version from nvidia-smi
     for /f "tokens=9" %%v in ('nvidia-smi ^| findstr "CUDA Version"') do set CUDA_VER=%%v
+    if not defined CUDA_VER set CUDA_VER=12.1
     for /f "tokens=1 delims=." %%a in ("%CUDA_VER%") do set CUDA_MAJ=%%a
     for /f "tokens=2 delims=." %%a in ("%CUDA_VER%") do set CUDA_MIN=%%a
+    if not defined CUDA_MIN set CUDA_MIN=0
 
-    :: Map CUDA version to PyTorch index
     set TORCH_IDX=cu121
     if "%CUDA_MAJ%"=="11" set TORCH_IDX=cu118
-    if "%CUDA_MAJ%"=="12" if %CUDA_MIN% GEQ 4 set TORCH_IDX=cu124
-
-    echo   CUDA %CUDA_VER% detected. Using PyTorch %TORCH_IDX%.
-    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/%TORCH_IDX% -q
-    if errorlevel 1 (
-        echo [ERROR] PyTorch installation failed.
-        echo   Check your Python version: python --version
-        echo   Supported: Python 3.9 - 3.12
-        pause & exit /b 1
+    if "%CUDA_MAJ%"=="12" (
+        if %CUDA_MIN% GEQ 4 set TORCH_IDX=cu124
     )
+    echo   CUDA %CUDA_VER% detected. Using PyTorch index: %TORCH_IDX%
 )
+
+if "%TORCH_IDX%"=="cpu" (
+    pip install torch torchvision torchaudio -q
+) else (
+    pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/%TORCH_IDX% -q
+)
+if errorlevel 1 (
+    echo [ERROR] PyTorch installation failed.
+    echo   Supported Python: 3.9 - 3.12
+    pause & exit /b 1
+)
+echo   PyTorch installed successfully.
 
 :: Other packages
 echo [3/4] Installing packages...
@@ -55,6 +64,7 @@ if errorlevel 1 (
     echo [ERROR] Package installation failed.
     pause & exit /b 1
 )
+echo   Packages installed successfully.
 
 :: Ollama
 echo [4/4] Checking Ollama...
