@@ -15,9 +15,10 @@ numpy
 torch
 whisperx
 
-# 화자 분리 (WhisperX DiarizationPipeline 내부에서 사용)
-# pyannote 모델 사용을 위해 HuggingFace 토큰 및 약관 동의 필요
-pyannote.audio>=3.1.0
+# 화자 분리 (resemblyzer + scikit-learn, 완전 오프라인)
+# resemblyzer 가중치 ~17MB 는 최초 실행 시 자동 다운로드 후 캐시 저장
+resemblyzer
+scikit-learn
 
 # Ollama HTTP 클라이언트 (표준 라이브러리 requests 사용)
 requests
