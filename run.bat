@@ -12,3 +12,9 @@ if errorlevel 1 (
 
 echo Starting WhisperNote...
 python app.py
+if errorlevel 1 (
+    echo.
+    echo [ERROR] App failed to start. Check the error above.
+    echo If packages are missing, run install.bat first.
+    pause
+)
