@@ -11,6 +11,7 @@ if errorlevel 1 (
 )
 
 echo Starting WhisperNote...
+set PYTHONHTTPSVERIFY=0
 python app.py
 if errorlevel 1 (
     echo.

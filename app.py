@@ -3,7 +3,17 @@ WhisperNote – 회의 녹음 → 전사 → 요약 자동화
 실행: python app.py
 """
 
-# static-ffmpeg: whisperx 오디오 로드에 필요한 ffmpeg 바이너리를 PATH에 등록
+# 회사 프록시 SSL 인증서 우회 (자체 서명 인증서 체인 오류 방지)
+# whisperx 모델, ffmpeg, resemblyzer 등 최초 다운로드 시 필요
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+import requests as _req
+_orig_req = _req.Session.request
+def _no_ssl_verify(self, method, url, **kwargs):
+    kwargs.setdefault("verify", False)
+    return _orig_req(self, method, url, **kwargs)
+_req.Session.request = _no_ssl_verify
+
 import static_ffmpeg
 static_ffmpeg.add_paths()
 
