@@ -12,8 +12,8 @@ import torch
 
 def _load_encoder():
     from resemblyzer import VoiceEncoder
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    return VoiceEncoder(device)
+    # device=None 으로 두면 resemblyzer 가 GPU/CPU 자동 감지
+    return VoiceEncoder()
 
 
 def _estimate_num_speakers(embeddings: np.ndarray, max_speakers: int = 8) -> int:

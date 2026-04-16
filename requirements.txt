@@ -1,24 +1,20 @@
 # WhisperNote 의존성
-# 설치: pip install -r requirements.txt
+# torch 는 install.bat 에서 CUDA 버전에 맞게 별도 설치됨 (여기서 제외)
 
 # UI
-gradio>=4.0.0
+gradio>=4.0.0,<5.0.0
 
 # 오디오 녹음
 sounddevice
 soundfile
 numpy
 
-# 전사 (WhisperX)
-# torch는 https://pytorch.org/get-started/locally/ 에서 GPU 버전 별도 설치 권장
-# 예: pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-torch
+# 전사
 whisperx
 
 # 화자 분리 (resemblyzer + scikit-learn, 완전 오프라인)
-# resemblyzer 가중치 ~17MB 는 최초 실행 시 자동 다운로드 후 캐시 저장
 resemblyzer
 scikit-learn
 
-# Ollama HTTP 클라이언트 (표준 라이브러리 requests 사용)
+# Ollama HTTP 클라이언트
 requests
