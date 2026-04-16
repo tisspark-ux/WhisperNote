@@ -21,6 +21,16 @@ WHISPER_DEVICE = "cuda"           # "cuda" (GPU) 또는 "cpu"
 WHISPER_COMPUTE_TYPE = "float16"  # GPU: "float16" / CPU: "int8"
 WHISPER_BATCH_SIZE = 16
 
+# 화자 분리 (Speaker Diarization)
+ENABLE_DIARIZATION = True
+# HuggingFace 토큰: pyannote/speaker-diarization-3.1 모델 접근에 필요
+# 1. https://huggingface.co/settings/tokens 에서 토큰 발급
+# 2. https://hf.co/pyannote/speaker-diarization-3.1 에서 약관 동의
+# 3. https://hf.co/pyannote/segmentation-3.0 에서 약관 동의
+HF_TOKEN = ""          # 발급받은 토큰을 여기에 입력
+MIN_SPEAKERS = None    # None = 자동 감지, 또는 최솟값(int) 지정
+MAX_SPEAKERS = None    # None = 자동 감지, 또는 최댓값(int) 지정
+
 # Ollama 설정
 OLLAMA_BASE_URL = "http://localhost:11434"
 OLLAMA_MODEL = "exaone3.5:latest"   # 기본 모델 (UI에서 변경 가능)

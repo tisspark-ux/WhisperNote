@@ -15,5 +15,9 @@ numpy
 torch
 whisperx
 
+# 화자 분리 (WhisperX DiarizationPipeline 내부에서 사용)
+# pyannote 모델 사용을 위해 HuggingFace 토큰 및 약관 동의 필요
+pyannote.audio>=3.1.0
+
 # Ollama HTTP 클라이언트 (표준 라이브러리 requests 사용)
 requests
