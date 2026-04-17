@@ -15,7 +15,7 @@ INPUT_SOURCE = "microphone"
 LOOPBACK_DEVICE_INDEX = None  # None = 자동 감지, 또는 장치 인덱스(int) 지정
 
 # WhisperX 설정
-WHISPER_MODEL = "large-v3"       # tiny / base / small / medium / large-v3
+WHISPER_MODEL = "large-v3-turbo"  # tiny / base / small / medium / large-v3 / large-v3-turbo
 WHISPER_LANGUAGE = "ko"           # 전사 언어
 WHISPER_DEVICE = "cuda"           # "cuda" (GPU) 또는 "cpu"
 WHISPER_COMPUTE_TYPE = "float16"  # GPU: "float16" / CPU: "int8"
