@@ -1,6 +1,14 @@
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 
 CHANGELOG = """
+v0.6.0 (2026-04-20)
+  - gradio_client.utils 3종 함수 일괄 패치: _json_schema_to_python_type,
+    get_type, get_desc — boolean schema 처리 누락으로 인한 TypeError 완전 해결
+  - bat 파일 ASCII-only 정책: 한글 주석 제거, :: → rem 전환
+  - 브라우저 프록시 우회를 app.py winreg로 이전 (run.bat 단순화)
+  - run.bat: netstat 폴링으로 포트 열릴 때만 브라우저 실행
+  - cmd /k로 WhisperNote 창 크래시 후에도 유지 (에러 확인 가능)
+
 v0.5.0 (2026-04-20)
   - Gradio url_ok 패치 안전성 강화 (try/except + hasattr 가드)
   - requirements.txt에 scipy 명시적 추가

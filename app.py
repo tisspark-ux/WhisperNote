@@ -51,17 +51,36 @@ _req.Session.request = _no_ssl_verify
 
 import gradio as gr
 
-# Gradio 4.x bug: get_type() in gradio_client crashes when schema is a boolean
-# (True/False are valid JSON Schema values meaning "any"/"never").
-# show_api=False doesn't prevent schema generation, so patch get_type directly.
+# Gradio 4.x bug: several gradio_client.utils functions crash when a JSON Schema
+# value is True/False (valid per JSON Schema spec, meaning "any"/"never").
+# Patch all three affected functions so none of them do 'in schema' on a bool.
 try:
     import gradio_client.utils as _gcu
-    _orig_get_type = _gcu.get_type
-    def _get_type_patched(schema):
-        if isinstance(schema, bool):
-            return "any"
-        return _orig_get_type(schema)
-    _gcu.get_type = _get_type_patched
+
+    if hasattr(_gcu, "_json_schema_to_python_type"):
+        _orig_j2p = _gcu._json_schema_to_python_type
+        def _j2p_patched(schema, defs=None):
+            if isinstance(schema, bool):
+                return "any"
+            return _orig_j2p(schema, defs)
+        _gcu._json_schema_to_python_type = _j2p_patched
+
+    if hasattr(_gcu, "get_type"):
+        _orig_get_type = _gcu.get_type
+        def _get_type_patched(schema):
+            if isinstance(schema, bool):
+                return "any"
+            return _orig_get_type(schema)
+        _gcu.get_type = _get_type_patched
+
+    if hasattr(_gcu, "get_desc"):
+        _orig_get_desc = _gcu.get_desc
+        def _get_desc_patched(schema):
+            if isinstance(schema, bool):
+                return ""
+            return _orig_get_desc(schema)
+        _gcu.get_desc = _get_desc_patched
+
 except Exception:
     pass
 
@@ -546,7 +565,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 ## 오프라인 동작
 
 - WhisperX `large-v3-turbo` 모델: 최초 실행 시 자동 다운로드 (~1.6 GB) 후 캐시
-- resemblyzer 가중치: 최초 실행 시 자동 다운로드 (~17 MB) 후 캐시
+- resemblyzer 가중치: pip 패키지에 내장 — 별도 다운로드 없음
 - Ollama: `ollama serve` + 모델 pull 후 완전 오프라인
 - **이후 회사 내 인터넷 없이 완전 로컬 실행 가능**
 
