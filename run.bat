@@ -15,8 +15,8 @@ set PYTHONHTTPSVERIFY=0
 set no_proxy=localhost,127.0.0.1,0.0.0.0
 set NO_PROXY=localhost,127.0.0.1,0.0.0.0
 
-rem Start Gradio server in a separate window so logs stay visible.
-start "WhisperNote" python app.py
+rem /k keeps the window open after crash so the error is visible.
+start "WhisperNote" cmd /k python app.py
 
 rem Wait until port 7860 is actually listening (max 60s, checks every 2s).
 rem torch/whisperX imports can take 30+ seconds on first run.
