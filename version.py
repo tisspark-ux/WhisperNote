@@ -1,6 +1,9 @@
-__version__ = "0.6.5"
+__version__ = "0.6.6"
 
 CHANGELOG = """
+v0.6.6 (2026-04-20)
+  - app.py: auto pipeline (transcribe + summarize) after recording stops via .then()
+
 v0.6.5 (2026-04-20)
   - recorder.py: fallback to first available input device when default is -1
   - recorder.py: helpful Korean error message with device list when no mic found

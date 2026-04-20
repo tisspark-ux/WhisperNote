@@ -617,6 +617,10 @@ python app.py
     btn_stop.click(
         handle_stop_recording,
         outputs=[btn_start, btn_stop, record_status, recorded_file],
+    ).then(
+        handle_pipeline,
+        inputs=[recorded_file, uploaded_file, ollama_model],
+        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
     )
     btn_refresh.click(
         refresh_ollama_models,
