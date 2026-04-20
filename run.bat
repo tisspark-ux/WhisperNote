@@ -12,28 +12,30 @@ if errorlevel 1 (
 
 for /f "tokens=*" %%v in ('python -c "from version import __version__; print(__version__)"') do set WN_VER=%%v
 echo Starting WhisperNote v%WN_VER%...
+
 set PYTHONHTTPSVERIFY=0
 set no_proxy=localhost,127.0.0.1,0.0.0.0
 set NO_PROXY=localhost,127.0.0.1,0.0.0.0
 
-:: Python/Gradio 를 별도 창에서 실행 (오류 로그 확인 가능)
+rem Add 127.0.0.1 to Windows proxy bypass so the browser can reach the local server.
+rem Uses PowerShell to safely read-then-append without overwriting existing entries.
+powershell -NoProfile -Command "$k='HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings'; $v=(Get-ItemProperty $k -EA 0).ProxyOverride; if($v -notlike '*127.0.0.1*'){$n=if($v){$v+';127.0.0.1;localhost'}else{'127.0.0.1;localhost'}; Set-ItemProperty $k ProxyOverride $n}" 2>nul
+
+rem Start Gradio server in a separate window so its logs stay visible.
 start "WhisperNote v%WN_VER%" python app.py
 
-:: Gradio 서버 준비 대기
 echo Waiting for server to start...
 timeout /t 6 /nobreak >nul
 
-:: 회사 프록시를 우회하여 Edge 실행
-:: <-loopback> = Chromium 계열에서 loopback 주소 프록시 제외 플래그
+rem Open default browser. Proxy bypass was already applied above.
 echo Opening browser...
-start "" "msedge" --proxy-bypass-list="<-loopback>;localhost;127.0.0.1" http://127.0.0.1:7860
+start http://127.0.0.1:7860
 
 echo.
 echo ======================================
 echo  WhisperNote v%WN_VER% is running
-echo  Access: http://127.0.0.1:7860
+echo  URL: http://127.0.0.1:7860
 echo.
-echo  If browser shows proxy error, add
-echo  127.0.0.1 to Windows proxy bypass:
-echo  Settings ^> Network ^> Proxy ^> bypass
+echo  If browser still shows an error,
+echo  close Edge completely and reopen.
 echo ======================================
