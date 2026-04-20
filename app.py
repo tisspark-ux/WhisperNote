@@ -46,10 +46,13 @@ try:
 except Exception:
     pass
 
+from version import __version__
 from config import OLLAMA_MODEL
 from recorder import AudioRecorder
 from summarizer import Summarizer
 from transcriber import Transcriber
+
+print(f"WhisperNote v{__version__}")
 
 recorder   = AudioRecorder()
 transcriber = Transcriber()
@@ -355,10 +358,11 @@ def list_audio_devices():
 with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
     # ── 헤더 ──
-    gr.HTML("""
+    gr.HTML(f"""
     <div id="wn-header">
         <h1>WhisperNote</h1>
         <p>회의 녹음 &nbsp;·&nbsp; 화자 분리 &nbsp;·&nbsp; 전사 &nbsp;·&nbsp; 요약 &nbsp;—&nbsp; 완전 로컬</p>
+        <span style="display:inline-block;margin-top:.5rem;padding:.2rem .7rem;background:#1e2130;border:1px solid #2d3348;border-radius:999px;font-size:.72rem;font-family:'JetBrains Mono',monospace;color:#6b7280;letter-spacing:.04em;">v{__version__}</span>
     </div>
     """)
 

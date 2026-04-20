@@ -10,7 +10,7 @@ if errorlevel 1 (
     timeout /t 2 >nul
 )
 
-echo Starting WhisperNote...
+for /f "tokens=*" %%v in ('python -c "from version import __version__; print(__version__)"') do echo Starting WhisperNote v%%v...
 set PYTHONHTTPSVERIFY=0
 set no_proxy=localhost,127.0.0.1,0.0.0.0
 set NO_PROXY=localhost,127.0.0.1,0.0.0.0
