@@ -16,6 +16,26 @@ from config import (
 
 RECORDINGS_DIR.mkdir(exist_ok=True)
 
+_LOOPBACK_KEYWORDS = (
+    "loopback",
+    "stereo mix",
+    "what u hear",
+    "wavout",
+    "wave out",
+    "재생 소리",
+    "스테레오 믹스",
+    "출력 믹스",
+    "virtual audio cable",
+    "voicemeeter",
+    "mix output",
+)
+
+
+def is_loopback_device_name(name: str) -> bool:
+    """장치 이름이 루프백/시스템 오디오 장치인지 키워드로 판별."""
+    name_lower = name.lower()
+    return any(kw in name_lower for kw in _LOOPBACK_KEYWORDS)
+
 
 class AudioRecorder:
     def __init__(self):
@@ -32,16 +52,16 @@ class AudioRecorder:
     # 장치 관련
     # ------------------------------------------------------------------
 
+    def find_loopback_device(self) -> tuple[int, str] | tuple[None, None]:
+        """루프백 장치 인덱스와 이름 반환. 없으면 (None, None)."""
+        for i, dev in enumerate(sd.query_devices()):
+            if dev["max_input_channels"] > 0 and is_loopback_device_name(dev["name"]):
+                return i, dev["name"]
+        return None, None
+
     def _find_loopback_device(self) -> int | None:
-        """WASAPI loopback 장치(시스템 오디오)를 자동 탐색."""
-        devices = sd.query_devices()
-        keywords = ("loopback", "stereo mix", "what u hear", "wavout")
-        for i, dev in enumerate(devices):
-            if dev["max_input_channels"] > 0:
-                name_lower = dev["name"].lower()
-                if any(kw in name_lower for kw in keywords):
-                    return i
-        return None
+        idx, _ = self.find_loopback_device()
+        return idx
 
     def _resolve_device(self) -> int | None:
         """설정에 따라 실제 사용할 입력 장치 인덱스를 반환."""
@@ -185,7 +205,7 @@ class AudioRecorder:
             self.current_file = RECORDINGS_DIR / f"{timestamp}.wav"
 
             device_name = dev_info.get("name", "알 수 없음")
-            if INPUT_SOURCE == "loopback":
+            if INPUT_SOURCE == "loopback" or is_loopback_device_name(device_name):
                 source_label = f"시스템 오디오 (loopback): {device_name}"
             else:
                 source_label = f"마이크: {device_name}"
@@ -248,5 +268,6 @@ class AudioRecorder:
         lines = []
         for i, dev in enumerate(devices):
             if dev["max_input_channels"] > 0:
-                lines.append(f"[{i}] {dev['name']} (SR: {int(dev['default_samplerate'])}Hz)")
+                tag = " [루프백]" if is_loopback_device_name(dev["name"]) else ""
+                lines.append(f"[{i}] {dev['name']}{tag} (SR: {int(dev['default_samplerate'])}Hz)")
         return "\n".join(lines) if lines else "입력 장치 없음"

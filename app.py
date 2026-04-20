@@ -123,9 +123,11 @@ except Exception:
 print("  [3/3] AI 라이브러리 로딩 중 (최초 실행 시 30초 이상 소요)...", flush=True)
 from version import __version__
 from config import OLLAMA_MODEL
-from recorder import AudioRecorder
+from recorder import AudioRecorder, is_loopback_device_name
 from summarizer import Summarizer
 from transcriber import Transcriber
+
+_LOOPBACK_AUTO = -2
 
 print(f"WhisperNote v{__version__}")
 
@@ -336,7 +338,20 @@ body, .gradio-container {
 # ---------------------------------------------------------------------------
 
 def handle_start_recording(device_idx):
-    device = None if (device_idx is None or device_idx == -1) else int(device_idx)
+    if device_idx == _LOOPBACK_AUTO:
+        loopback_idx, _ = recorder.find_loopback_device()
+        if loopback_idx is None:
+            msg = ("루프백 장치를 찾을 수 없습니다.\n"
+                   "Windows 사운드 설정 → 녹음 탭 → 'Stereo Mix' 활성화 후 재시도하거나,\n"
+                   "장치 목록에서 직접 루프백 장치를 선택하세요.")
+            return (gr.update(interactive=True), gr.update(interactive=False),
+                    gr.update(interactive=False, value="⏸ 일시정지"),
+                    gr.update(interactive=True, value="마이크 테스트"), msg, "")
+        device = loopback_idx
+    elif device_idx is None or device_idx == -1:
+        device = None
+    else:
+        device = int(device_idx)
     file_path, msg = recorder.start(device_override=device)
     if file_path:
         return (
@@ -385,7 +400,13 @@ def handle_mic_test(device_idx):
         msg = recorder.stop_test()
         return gr.update(value="마이크 테스트"), msg
     else:
-        device = None if (device_idx is None or device_idx == -1) else int(device_idx)
+        if device_idx == _LOOPBACK_AUTO:
+            loopback_idx, _ = recorder.find_loopback_device()
+            device = loopback_idx
+        elif device_idx is None or device_idx == -1:
+            device = None
+        else:
+            device = int(device_idx)
         msg = recorder.start_test(device_override=device)
         if "실패" in msg:
             return gr.update(value="마이크 테스트"), msg
@@ -477,10 +498,11 @@ def list_audio_devices():
 def get_input_device_choices():
     """UI 드롭다운용 (레이블, 인덱스) 선택지 목록 반환."""
     import sounddevice as sd
-    choices = [("자동 감지 (기본값)", -1)]
+    choices = [("자동 감지 (기본값)", -1), ("🔊 루프백 자동감지", _LOOPBACK_AUTO)]
     for i, dev in enumerate(sd.query_devices()):
         if dev["max_input_channels"] > 0:
-            choices.append((f"[{i}] {dev['name']}", i))
+            tag = " [루프백]" if is_loopback_device_name(dev["name"]) else ""
+            choices.append((f"[{i}] {dev['name']}{tag}", i))
     return choices
 
 

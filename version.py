@@ -1,6 +1,14 @@
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 
 CHANGELOG = """
+v0.8.0 (2026-04-20)
+  - [기능] 루프백 장치 감지 키워드 확장 (한글 장치명, Virtual Audio Cable, Voicemeeter 등)
+  - [기능] UI 드롭다운에 "루프백 자동감지" 선택지 추가
+  - [기능] 드롭다운 및 설정 탭 장치 목록에 [루프백] 태그 표시
+  - [수정] 루프백 장치 수동 선택 시 source_label "마이크:" 오표시 버그 수정
+  - recorder.py: _LOOPBACK_KEYWORDS + is_loopback_device_name() + find_loopback_device() 추가
+  - app.py: _LOOPBACK_AUTO(-2) sentinel, get_input_device_choices/handle_start_recording/handle_mic_test 개선
+
 v0.7.0 (2026-04-20)
   - [기능] 녹음 중 일시정지/재개 (⏸ / ▶ 버튼)
   - [기능] 녹음 시작 전 마이크 테스트 (레벨 미터로 입력 확인)
