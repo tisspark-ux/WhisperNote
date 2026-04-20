@@ -12,6 +12,8 @@ if errorlevel 1 (
 
 echo Starting WhisperNote...
 set PYTHONHTTPSVERIFY=0
+set no_proxy=localhost,127.0.0.1,0.0.0.0
+set NO_PROXY=localhost,127.0.0.1,0.0.0.0
 python app.py
 if errorlevel 1 (
     echo.

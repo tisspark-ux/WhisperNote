@@ -10,6 +10,12 @@ from pathlib import Path
 os.environ.setdefault("HF_HOME", str(Path(__file__).parent / "models"))
 os.environ.setdefault("TORCH_HOME", str(Path(__file__).parent / "models"))
 
+# 회사 프록시에서 localhost 제외 (Gradio가 자기 서버에 연결할 수 있도록)
+for _k in ("no_proxy", "NO_PROXY"):
+    _cur = os.environ.get(_k, "")
+    _add = "localhost,127.0.0.1,0.0.0.0"
+    os.environ[_k] = f"{_cur},{_add}" if _cur else _add
+
 # 회사 프록시 SSL 인증서 우회 (자체 서명 인증서 체인 오류 방지)
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -546,4 +552,5 @@ if __name__ == "__main__":
         server_port=7860,
         share=False,
         inbrowser=True,
+        show_api=False,
     )
