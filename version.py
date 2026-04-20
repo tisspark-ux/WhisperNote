@@ -1,6 +1,11 @@
-__version__ = "0.6.1"
+__version__ = "0.6.2"
 
 CHANGELOG = """
+v0.6.2 (2026-04-20)
+  - install.bat: show all pip output in real-time (removed log file redirection)
+  - install.bat: sub-step labels [3a/3b/3c] for package install visibility
+  - install.bat: remove install_log.txt (errors now visible directly on screen)
+
 v0.6.1 (2026-04-20)
   - install.bat: remove final pause on success, auto-launch run.bat after install
   - run.bat: confirmed no pause (no change needed)
