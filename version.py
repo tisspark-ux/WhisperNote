@@ -1,6 +1,11 @@
-__version__ = "0.6.3"
+__version__ = "0.6.4"
 
 CHANGELOG = """
+v0.6.4 (2026-04-20)
+  - app.py: unhandled exceptions logged to whispernote_error.log (utf-8, timestamp)
+  - sys.excepthook: errors shown in console window AND saved to file
+  - .gitignore: whispernote_error.log excluded
+
 v0.6.3 (2026-04-20)
   - app.py: Korean progress prints before heavy imports (flush=True) - no more black window
   - run.bat: netstat timeout 60s -> 150s (torch/whisperx can take 60+ sec)

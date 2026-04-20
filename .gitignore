@@ -4,6 +4,7 @@ __pycache__/
 recordings/
 outputs/
 install_log.txt
+whispernote_error.log
 
 # WhisperX model cache
 models/*

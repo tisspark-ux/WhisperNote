@@ -5,7 +5,24 @@ WhisperNote – 회의 녹음 → 전사 → 요약 자동화
 
 import os
 import sys
+import logging
+import traceback
 from pathlib import Path
+
+# 앱 실행 중 발생하는 에러를 파일로 기록 (창 닫혀도 로그 남음)
+_LOG_PATH = Path(__file__).parent / "whispernote_error.log"
+logging.basicConfig(
+    filename=str(_LOG_PATH),
+    level=logging.ERROR,
+    format="%(asctime)s %(levelname)s: %(message)s",
+    encoding="utf-8",
+)
+
+def _handle_exception(exc_type, exc_value, exc_tb):
+    logging.error("미처리 예외", exc_info=(exc_type, exc_value, exc_tb))
+    traceback.print_exception(exc_type, exc_value, exc_tb)
+
+sys.excepthook = _handle_exception
 
 # WhisperX 모델 캐시를 프로젝트 내 models/ 폴더로 지정 (HuggingFace 최초 다운 후 오프라인 동작)
 os.environ.setdefault("HF_HOME", str(Path(__file__).parent / "models"))
