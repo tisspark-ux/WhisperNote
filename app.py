@@ -31,6 +31,16 @@ _req.Session.request = _no_ssl_verify
 
 import gradio as gr
 
+# Gradio의 localhost 접근 가능 여부 체크 함수를 패치
+# 회사 프록시가 localhost까지 차단하는 환경 대응
+import gradio.networking as _gn
+_orig_url_ok = _gn.url_ok
+def _url_ok_patched(url: str) -> bool:
+    if any(x in url for x in ("localhost", "127.0.0.1", "0.0.0.0")):
+        return True
+    return _orig_url_ok(url)
+_gn.url_ok = _url_ok_patched
+
 from config import OLLAMA_MODEL
 from recorder import AudioRecorder
 from summarizer import Summarizer
