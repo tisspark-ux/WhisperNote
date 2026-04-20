@@ -573,6 +573,6 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
-        inbrowser=True,
+        inbrowser=False,  # run.bat 에서 프록시 우회 플래그로 직접 실행
         show_api=False,
     )
