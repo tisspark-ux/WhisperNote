@@ -33,13 +33,18 @@ import gradio as gr
 
 # Gradio의 localhost 접근 가능 여부 체크 함수를 패치
 # 회사 프록시가 localhost까지 차단하는 환경 대응
-import gradio.networking as _gn
-_orig_url_ok = _gn.url_ok
-def _url_ok_patched(url: str) -> bool:
-    if any(x in url for x in ("localhost", "127.0.0.1", "0.0.0.0")):
-        return True
-    return _orig_url_ok(url)
-_gn.url_ok = _url_ok_patched
+# (Gradio 버전마다 내부 API가 다를 수 있으므로 try/except 로 감쌈)
+try:
+    import gradio.networking as _gn
+    if hasattr(_gn, "url_ok"):
+        _orig_url_ok = _gn.url_ok
+        def _url_ok_patched(url: str) -> bool:
+            if any(x in url for x in ("localhost", "127.0.0.1", "0.0.0.0")):
+                return True
+            return _orig_url_ok(url)
+        _gn.url_ok = _url_ok_patched
+except Exception:
+    pass
 
 from config import OLLAMA_MODEL
 from recorder import AudioRecorder
@@ -483,7 +488,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
 | 항목 | 기본값 | 설명 |
 |---|---|---|
-| `WHISPER_MODEL` | `large-v3` | tiny / base / small / medium / large-v3 |
+| `WHISPER_MODEL` | `large-v3-turbo` | tiny / base / small / medium / large-v3 / large-v3-turbo |
 | `WHISPER_LANGUAGE` | `ko` | 전사 언어 코드 |
 | `WHISPER_DEVICE` | `cuda` | `cuda` 또는 `cpu` |
 | `OLLAMA_MODEL` | `exaone3.5:latest` | 기본 요약 모델 |
@@ -502,7 +507,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
 ## 오프라인 동작
 
-- WhisperX `large-v3` 모델: 최초 실행 시 자동 다운로드 (~3 GB) 후 캐시
+- WhisperX `large-v3-turbo` 모델: 최초 실행 시 자동 다운로드 (~1.6 GB) 후 캐시
 - resemblyzer 가중치: 최초 실행 시 자동 다운로드 (~17 MB) 후 캐시
 - Ollama: `ollama serve` + 모델 pull 후 완전 오프라인
 - **이후 회사 내 인터넷 없이 완전 로컬 실행 가능**

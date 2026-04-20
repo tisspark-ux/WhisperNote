@@ -1,7 +1,7 @@
 """
 화자 분리 모듈 — resemblyzer + SpectralClustering 기반
 HuggingFace 접근 불필요, pip install 후 완전 오프라인 동작.
-(resemblyzer 가중치 ~17MB 는 최초 실행 시 자동 다운로드 후 캐시 저장)
+(resemblyzer 가중치 ~17MB 는 pip 패키지에 내장 — 별도 다운로드 불필요)
 """
 
 from __future__ import annotations

@@ -8,10 +8,11 @@ av
 gradio>=4.0.0,<5.0.0
 pillow>=10.0.0
 
-# 오디오 녹음
+# 오디오 녹음 / 처리
 sounddevice
 soundfile
 numpy
+scipy
 
 # 전사 (의존성 순서 중요: pyannote 먼저 고정 후 whisperx)
 pyannote.audio==3.4.0  # 4.x 는 whisperx 미지원 (github issue #1241)
