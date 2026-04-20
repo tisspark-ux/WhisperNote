@@ -340,22 +340,56 @@ def handle_start_recording(device_idx):
     file_path, msg = recorder.start(device_override=device)
     if file_path:
         return (
-            gr.update(interactive=False),
-            gr.update(interactive=True),
+            gr.update(interactive=False),                        # btn_start
+            gr.update(interactive=True),                         # btn_stop
+            gr.update(interactive=True, value="⏸ 일시정지"),    # btn_pause
+            gr.update(interactive=False, value="마이크 테스트"), # btn_test
             msg,
             file_path,
         )
-    return (gr.update(interactive=True), gr.update(interactive=False), msg, "")
+    return (
+        gr.update(interactive=True),
+        gr.update(interactive=False),
+        gr.update(interactive=False, value="⏸ 일시정지"),
+        gr.update(interactive=True, value="마이크 테스트"),
+        msg,
+        "",
+    )
 
 
 def handle_stop_recording():
     file_path, msg = recorder.stop()
     return (
-        gr.update(interactive=True),
-        gr.update(interactive=False),
+        gr.update(interactive=True),                             # btn_start
+        gr.update(interactive=False),                            # btn_stop
+        gr.update(interactive=False, value="⏸ 일시정지"),       # btn_pause (초기화)
+        gr.update(interactive=True, value="마이크 테스트"),      # btn_test
         msg,
         file_path or "",
     )
+
+
+def handle_pause_resume():
+    """일시정지 ↔ 재개 토글."""
+    if recorder.paused:
+        msg = recorder.resume()
+        return gr.update(value="⏸ 일시정지"), msg
+    else:
+        msg = recorder.pause()
+        return gr.update(value="▶ 재개"), msg
+
+
+def handle_mic_test(device_idx):
+    """마이크 테스트 토글."""
+    if recorder.testing:
+        msg = recorder.stop_test()
+        return gr.update(value="마이크 테스트"), msg
+    else:
+        device = None if (device_idx is None or device_idx == -1) else int(device_idx)
+        msg = recorder.start_test(device_override=device)
+        if "실패" in msg:
+            return gr.update(value="마이크 테스트"), msg
+        return gr.update(value="테스트 중지"), msg
 
 
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
@@ -452,15 +486,18 @@ def get_input_device_choices():
 
 def get_level_html():
     """녹음 중 오디오 레벨을 HTML 막대로 반환. demo.load every=0.2 로 주기 호출."""
+    if recorder.paused:
+        return '<div class="wn-level-bar wn-level-idle">⏸ 일시정지됨</div>'
     level = recorder.get_level()
-    if not recorder.recording:
+    if not (recorder.recording or recorder.testing):
         return '<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
     filled = int(level / 10)
     bar = "█" * filled + "░" * (10 - filled)
     color = "#ef4444" if level > 80 else "#6ee7b7"
+    prefix = "테스트 " if recorder.testing else ""
     return (
         f'<div class="wn-level-bar" style="color:{color}">'
-        f'{bar} &nbsp;{level:.0f}%</div>'
+        f'{prefix}{bar}&nbsp;{level:.0f}%</div>'
     )
 
 
@@ -502,6 +539,9 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     with gr.Row():
                         btn_start = gr.Button("● 녹음 시작", elem_id="btn-start")
                         btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False)
+                    with gr.Row():
+                        btn_pause = gr.Button("⏸ 일시정지", elem_classes="wn-btn-secondary", interactive=False, scale=1)
+                        btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
 
                     level_display = gr.HTML(
                         value='<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
@@ -667,15 +707,26 @@ python app.py
     btn_start.click(
         handle_start_recording,
         inputs=[input_device],
-        outputs=[btn_start, btn_stop, record_status, recorded_file],
+        outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     )
     btn_stop.click(
         handle_stop_recording,
-        outputs=[btn_start, btn_stop, record_status, recorded_file],
-    ).then(
-        handle_pipeline,
-        inputs=[recorded_file, uploaded_file, ollama_model],
-        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
+        outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
+    )
+    # 녹음 완료 후 자동 전사/요약 비활성화 (수동 실행)
+    # .then(
+    #     handle_pipeline,
+    #     inputs=[recorded_file, uploaded_file, ollama_model],
+    #     outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
+    # )
+    btn_pause.click(
+        handle_pause_resume,
+        outputs=[btn_pause, record_status],
+    )
+    btn_test.click(
+        handle_mic_test,
+        inputs=[input_device],
+        outputs=[btn_test, record_status],
     )
     btn_refresh.click(
         refresh_ollama_models,

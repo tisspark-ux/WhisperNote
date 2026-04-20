@@ -1,6 +1,14 @@
-__version__ = "0.6.9"
+__version__ = "0.7.0"
 
 CHANGELOG = """
+v0.7.0 (2026-04-20)
+  - [기능] 녹음 중 일시정지/재개 (⏸ / ▶ 버튼)
+  - [기능] 녹음 시작 전 마이크 테스트 (레벨 미터로 입력 확인)
+  - [변경] 녹음 완료 후 자동 전사/요약 비활성화 (수동 실행으로 변경)
+  - recorder.py: pause/resume/start_test/stop_test 메서드 추가
+  - recorder.py: _open_input_stream 공통 장치 열기 로직 분리
+  - app.py: 버튼 상태 6개 반환으로 확장, 레벨 미터 테스트/일시정지 상태 표시
+
 v0.6.9 (2026-04-20)
   - CLAUDE.md: 수정 후 영향도 체크 및 커밋 전 코드 점검 규칙 추가
   - app.py: demo.load에서 gr.Dropdown() -> gr.update() 수정 (Gradio 4.x 호환)

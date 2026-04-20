@@ -20,6 +20,8 @@ RECORDINGS_DIR.mkdir(exist_ok=True)
 class AudioRecorder:
     def __init__(self):
         self.recording = False
+        self.paused = False
+        self.testing = False
         self.audio_data: list[np.ndarray] = []
         self.stream: sd.InputStream | None = None
         self.lock = threading.Lock()
@@ -53,15 +55,13 @@ class AudioRecorder:
                 )
             return idx
 
-        # 기본 마이크: 기본 장치가 유효한지 먼저 확인
         try:
             info = sd.query_devices(None, "input")
             if info.get("index", -1) >= 0:
-                return None  # 기본 입력 장치 정상
+                return None
         except Exception:
             pass
 
-        # 기본 장치 없음 → 사용 가능한 첫 번째 입력 장치 자동 선택
         for i, dev in enumerate(sd.query_devices()):
             if dev["max_input_channels"] > 0:
                 return i
@@ -73,13 +73,24 @@ class AudioRecorder:
             f"현재 감지된 입력 장치:\n{available}"
         )
 
+    def _open_input_stream(self, device_override) -> tuple[int | None, dict]:
+        """공통 스트림 열기 로직. (device_index, dev_info) 반환."""
+        device = device_override if device_override is not None else self._resolve_device()
+        dev_info = sd.query_devices(device, "input")
+        if dev_info is None:
+            raise RuntimeError("입력 장치를 찾을 수 없습니다.")
+        self._actual_samplerate = int(dev_info["default_samplerate"])
+        return device, dev_info
+
     # ------------------------------------------------------------------
-    # 녹음 제어
+    # 레벨 측정
     # ------------------------------------------------------------------
 
     def get_level(self) -> float:
-        """현재 녹음 버퍼의 RMS 레벨을 0–100 으로 반환."""
-        if not self.recording:
+        """현재 오디오 레벨 0–100. 녹음 중(일시정지 제외) 또는 테스트 중일 때 동작."""
+        if self.paused:
+            return 0.0
+        if not (self.recording or self.testing):
             return 0.0
         with self.lock:
             if not self.audio_data:
@@ -89,27 +100,75 @@ class AudioRecorder:
         rms = float(np.sqrt(np.mean(chunk ** 2)))
         return min(100.0, rms * 1200)
 
+    # ------------------------------------------------------------------
+    # 마이크 테스트 (저장 없이 레벨만 측정)
+    # ------------------------------------------------------------------
+
+    def start_test(self, device_override=None) -> str:
+        """마이크 테스트 시작. 오디오를 저장하지 않고 레벨만 측정."""
+        if self.recording:
+            return "녹음 중에는 테스트할 수 없습니다."
+        if self.testing:
+            return self.stop_test()
+
+        try:
+            device, dev_info = self._open_input_stream(device_override)
+            self.audio_data = []
+            self.testing = True
+
+            def _callback(indata: np.ndarray, frames: int, time, status):
+                if self.testing:
+                    with self.lock:
+                        self.audio_data.append(indata.copy())
+                        if len(self.audio_data) > 20:
+                            self.audio_data.pop(0)
+
+            self.stream = sd.InputStream(
+                device=device,
+                channels=CHANNELS,
+                samplerate=self._actual_samplerate,
+                callback=_callback,
+                dtype="float32",
+            )
+            self.stream.start()
+            device_name = dev_info.get("name", "알 수 없음")
+            return f"마이크 테스트 중 — {device_name}"
+        except Exception as exc:
+            self.testing = False
+            self.stream = None
+            return f"테스트 실패: {exc}"
+
+    def stop_test(self) -> str:
+        """마이크 테스트 종료."""
+        if not self.testing:
+            return "테스트 중이 아닙니다."
+        self.testing = False
+        if self.stream:
+            self.stream.stop()
+            self.stream.close()
+            self.stream = None
+        self.audio_data = []
+        return "마이크 테스트 종료"
+
+    # ------------------------------------------------------------------
+    # 녹음 제어
+    # ------------------------------------------------------------------
+
     def start(self, device_override=None) -> tuple[str | None, str]:
-        """녹음 시작. (파일경로 | None, 상태 메시지) 반환.
-        device_override: UI에서 선택한 장치 인덱스(int). None이면 자동 감지.
-        """
+        """녹음 시작. 테스트 중이면 자동 종료 후 녹음 시작."""
+        if self.testing:
+            self.stop_test()
         if self.recording:
             return None, "이미 녹음 중입니다."
 
         try:
-            device = device_override if device_override is not None else self._resolve_device()
-
-            # 장치 기본 샘플레이트 확인
-            dev_info = sd.query_devices(device, "input")
-            if dev_info is None:
-                raise RuntimeError("입력 장치를 찾을 수 없습니다.")
-            self._actual_samplerate = int(dev_info["default_samplerate"])
-
+            device, dev_info = self._open_input_stream(device_override)
             self.audio_data = []
+            self.paused = False
             self.recording = True
 
             def _callback(indata: np.ndarray, frames: int, time, status):
-                if self.recording:
+                if self.recording and not self.paused:
                     with self.lock:
                         self.audio_data.append(indata.copy())
 
@@ -134,15 +193,35 @@ class AudioRecorder:
 
         except Exception as exc:
             self.recording = False
+            self.paused = False
             self.stream = None
             return None, f"녹음 시작 실패: {exc}"
 
+    def pause(self) -> str:
+        """녹음 일시정지."""
+        if not self.recording:
+            return "녹음 중이 아닙니다."
+        if self.paused:
+            return "이미 일시정지 중입니다."
+        self.paused = True
+        return "일시정지됨 — 재개하려면 ▶ 재개 버튼을 누르세요"
+
+    def resume(self) -> str:
+        """녹음 재개."""
+        if not self.recording:
+            return "녹음 중이 아닙니다."
+        if not self.paused:
+            return "일시정지 상태가 아닙니다."
+        self.paused = False
+        return "녹음 재개됨"
+
     def stop(self) -> tuple[str | None, str]:
-        """녹음 종료 후 WAV 저장. (파일경로 | None, 상태 메시지) 반환."""
+        """녹음 종료 후 WAV 저장."""
         if not self.recording:
             return None, "녹음 중이 아닙니다."
 
         self.recording = False
+        self.paused = False
 
         if self.stream:
             self.stream.stop()
@@ -157,7 +236,6 @@ class AudioRecorder:
 
         sf.write(str(self.current_file), audio_array, self._actual_samplerate)
         duration = len(audio_array) / self._actual_samplerate
-
         return str(self.current_file), f"녹음 완료: {duration:.1f}초 ({self.current_file.name})"
 
     # ------------------------------------------------------------------
