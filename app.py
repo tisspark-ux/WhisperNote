@@ -4,6 +4,7 @@ WhisperNote – 회의 녹음 → 전사 → 요약 자동화
 """
 
 import os
+import sys
 from pathlib import Path
 
 # WhisperX 모델 캐시를 프로젝트 내 models/ 폴더로 지정 (HuggingFace 최초 다운 후 오프라인 동작)
@@ -15,6 +16,25 @@ for _k in ("no_proxy", "NO_PROXY"):
     _cur = os.environ.get(_k, "")
     _add = "localhost,127.0.0.1,0.0.0.0"
     os.environ[_k] = f"{_cur},{_add}" if _cur else _add
+
+# Windows: 127.0.0.1 을 시스템 프록시 예외 목록에 추가 (HKCU, 관리자 권한 불필요)
+# → run.bat 에서 PowerShell/특수문자 없이 브라우저 프록시 우회 처리
+if sys.platform == "win32":
+    try:
+        import winreg as _reg
+        _IK = r"Software\Microsoft\Windows\CurrentVersion\Internet Settings"
+        try:
+            _rk = _reg.OpenKey(_reg.HKEY_CURRENT_USER, _IK, 0, _reg.KEY_ALL_ACCESS)
+            _cur_bypass = _reg.QueryValueEx(_rk, "ProxyOverride")[0]
+        except OSError:
+            _rk = _reg.CreateKey(_reg.HKEY_CURRENT_USER, _IK)
+            _cur_bypass = ""
+        if "127.0.0.1" not in _cur_bypass:
+            _new_bypass = (_cur_bypass + ";127.0.0.1;localhost") if _cur_bypass else "127.0.0.1;localhost"
+            _reg.SetValueEx(_rk, "ProxyOverride", 0, _reg.REG_SZ, _new_bypass)
+        _reg.CloseKey(_rk)
+    except Exception:
+        pass
 
 # 회사 프록시 SSL 인증서 우회 (자체 서명 인증서 체인 오류 방지)
 import urllib3

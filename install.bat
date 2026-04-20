@@ -4,7 +4,7 @@ echo  WhisperNote Setup
 echo ======================================
 echo.
 
-:: Python version selection (prefer 3.12 > 3.11 > 3.13 > system default)
+rem Python version selection (prefer 3.12 > 3.11 > 3.13 > system default)
 set PYTHON_CMD=python
 py -3.13 --version >nul 2>&1
 if not errorlevel 1 set PYTHON_CMD=py -3.13
@@ -20,7 +20,7 @@ if errorlevel 1 (
 )
 for /f "tokens=*" %%i in ('%PYTHON_CMD% --version') do echo   Using %%i
 
-:: Virtual environment
+rem Virtual environment
 if not exist ".venv" (
     echo [1/4] Creating virtual environment...
     %PYTHON_CMD% -m venv .venv
@@ -31,10 +31,10 @@ if not exist ".venv" (
 set PIP=.venv\Scripts\pip.exe
 set PYTHON=.venv\Scripts\python.exe
 
-:: Upgrade pip first to ensure binary wheel support
+rem Upgrade pip first to ensure binary wheel support
 %PYTHON% -m pip install --upgrade pip -q
 
-:: PyTorch (CUDA 13.0 / RTX A4000)
+rem PyTorch (CUDA 13.0 / RTX A4000)
 echo [2/4] Installing PyTorch...
 %PYTHON% -c "import torch" >nul 2>&1
 if not errorlevel 1 (
@@ -49,7 +49,7 @@ if errorlevel 1 (
 echo   PyTorch installed.
 :torch_done
 
-:: Other packages
+rem Other packages
 echo [3/4] Installing packages...
 %PIP% install webrtcvad-wheels -q
 %PIP% install resemblyzer --no-deps -q
@@ -60,7 +60,7 @@ if errorlevel 1 (
 )
 echo   Packages installed.
 
-:: Ollama
+rem Ollama
 echo [4/4] Checking Ollama...
 where ollama >nul 2>&1
 if errorlevel 1 (
