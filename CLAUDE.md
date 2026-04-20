@@ -61,6 +61,19 @@ Exception: .bat files must remain ASCII-only (English), per the absolute rule ab
 
 Plan files (plan mode) must also be written in Korean.
 
+## 수정 후 영향도 체크 및 커밋 규칙
+
+모든 수정 작업은 아래 순서를 반드시 따를 것:
+
+1. **영향도 체크**: 수정한 파일과 연관된 전체 파일을 확인하여 사이드 이펙트 여부 점검.
+   - 함수 시그니처 변경 → 호출하는 모든 곳 수정
+   - 클래스/모듈 변경 → 임포트하는 모든 파일 확인
+   - UI 컴포넌트 추가/변경 → 이벤트 연결(inputs/outputs) 일치 여부 확인
+
+2. **코드 점검**: 커밋 전 수정된 파일을 다시 읽어 논리 오류, 누락된 연결, 타입 불일치 등 검토.
+
+3. **커밋**: 점검 후 문제가 없을 때만 커밋할 것. 발견된 문제는 먼저 수정 후 커밋.
+
 ## Versioning rules
 
 Use semantic versioning: MAJOR.MINOR.PATCH

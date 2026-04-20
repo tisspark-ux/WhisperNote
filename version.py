@@ -1,6 +1,11 @@
-__version__ = "0.6.8"
+__version__ = "0.6.9"
 
 CHANGELOG = """
+v0.6.9 (2026-04-20)
+  - CLAUDE.md: 수정 후 영향도 체크 및 커밋 전 코드 점검 규칙 추가
+  - app.py: demo.load에서 gr.Dropdown() -> gr.update() 수정 (Gradio 4.x 호환)
+  - app.py: handle_start_recording device_idx None 처리 추가
+
 v0.6.8 (2026-04-20)
   - UI: 녹음 버튼 위에 입력 장치 드롭다운 추가 (자동 감지 / 개별 선택)
   - UI: 녹음 중 오디오 레벨 미터 표시 (0.2초 갱신, 80% 이상 빨간색)

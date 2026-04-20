@@ -336,7 +336,7 @@ body, .gradio-container {
 # ---------------------------------------------------------------------------
 
 def handle_start_recording(device_idx):
-    device = None if device_idx == -1 else int(device_idx)
+    device = None if (device_idx is None or device_idx == -1) else int(device_idx)
     file_path, msg = recorder.start(device_override=device)
     if file_path:
         return (
@@ -659,7 +659,7 @@ python app.py
 
     # ── 이벤트 연결 ──────────────────────────────────────────
     demo.load(
-        lambda: gr.Dropdown(choices=get_input_device_choices(), value=-1),
+        lambda: gr.update(choices=get_input_device_choices(), value=-1),
         outputs=[input_device],
     )
     demo.load(get_level_html, outputs=[level_display], every=0.2)
