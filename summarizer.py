@@ -41,6 +41,7 @@ class Summarizer:
         transcript: str,
         audio_stem: str,
         model: str | None = None,
+        output_dir=None,
     ) -> tuple[str, str]:
         """
         Ollama 로 전사문을 요약한다.
@@ -82,7 +83,9 @@ class Summarizer:
             raise RuntimeError(f"Ollama 요약 실패: {exc}")
 
         # TXT 저장
-        output_file = OUTPUTS_DIR / f"{audio_stem}_summary.txt"
+        out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_file = out_dir / f"{audio_stem}_summary.txt"
         output_file.write_text(summary, encoding="utf-8")
 
         return summary, str(output_file)

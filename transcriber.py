@@ -89,6 +89,7 @@ class Transcriber:
         self,
         audio_path: str,
         on_progress: Callable[[str], None] | None = None,
+        output_dir=None,
     ) -> tuple[str, str]:
         """
         WhisperX 로 오디오 파일을 전사한다.
@@ -171,8 +172,10 @@ class Transcriber:
         transcript = "\n".join(lines)
 
         # TXT 저장
+        out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
+        out_dir.mkdir(parents=True, exist_ok=True)
         stem = Path(audio_path).stem
-        output_file = OUTPUTS_DIR / f"{stem}_transcript.txt"
+        output_file = out_dir / f"{stem}_transcript.txt"
         output_file.write_text(transcript, encoding="utf-8")
 
         _progress(f"전사 완료: {output_file.name}")

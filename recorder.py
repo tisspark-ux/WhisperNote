@@ -174,7 +174,7 @@ class AudioRecorder:
     # 녹음 제어
     # ------------------------------------------------------------------
 
-    def start(self, device_override=None) -> tuple[str | None, str]:
+    def start(self, device_override=None, output_dir=None) -> tuple[str | None, str]:
         """녹음 시작. 테스트 중이면 자동 종료 후 녹음 시작."""
         if self.testing:
             self.stop_test()
@@ -201,8 +201,10 @@ class AudioRecorder:
             )
             self.stream.start()
 
+            wav_dir = output_dir if output_dir is not None else RECORDINGS_DIR
+            wav_dir.mkdir(parents=True, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.current_file = RECORDINGS_DIR / f"{timestamp}.wav"
+            self.current_file = wav_dir / f"{timestamp}.wav"
 
             device_name = dev_info.get("name", "알 수 없음")
             if INPUT_SOURCE == "loopback" or is_loopback_device_name(device_name):

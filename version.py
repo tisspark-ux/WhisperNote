@@ -1,6 +1,15 @@
-__version__ = "0.8.0"
+__version__ = "0.8.1"
 
 CHANGELOG = """
+v0.8.1 (2026-04-20)
+  - [리팩토링] categories.py 신규: 카테고리 트리 CRUD + categories.json 영속화
+  - [리팩토링] storage.py 신규: 카테고리 → 파일 경로 변환 (sessions/ 기반)
+  - [리팩토링] config.py: SESSIONS_DIR, CATEGORIES_FILE 경로 추가
+  - [리팩토링] recorder.start(output_dir=None): 카테고리 폴더 지원 준비
+  - [리팩토링] transcriber.transcribe(output_dir=None): 카테고리 폴더 지원 준비
+  - [리팩토링] summarizer.summarize(output_dir=None): 카테고리 폴더 지원 준비
+  - 기존 동작 완전 보존 (output_dir=None 시 recordings/, outputs/ 사용)
+
 v0.8.0 (2026-04-20)
   - [기능] 루프백 장치 감지 키워드 확장 (한글 장치명, Virtual Audio Cable, Voicemeeter 등)
   - [기능] UI 드롭다운에 "루프백 자동감지" 선택지 추가
