@@ -23,6 +23,9 @@ import requests as _req
 _orig_req = _req.Session.request
 def _no_ssl_verify(self, method, url, **kwargs):
     kwargs.setdefault("verify", False)
+    # localhost는 프록시 없이 직접 연결 (회사 프록시 우회)
+    if any(x in str(url) for x in ("localhost", "127.0.0.1", "0.0.0.0")):
+        kwargs["proxies"] = {"http": None, "https": None}
     return _orig_req(self, method, url, **kwargs)
 _req.Session.request = _no_ssl_verify
 
