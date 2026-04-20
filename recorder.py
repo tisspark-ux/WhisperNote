@@ -52,7 +52,26 @@ class AudioRecorder:
                     "config.py 의 INPUT_SOURCE 를 'microphone' 으로 변경하세요."
                 )
             return idx
-        return None  # None = 기본 마이크
+
+        # 기본 마이크: 기본 장치가 유효한지 먼저 확인
+        try:
+            info = sd.query_devices(None, "input")
+            if info.get("index", -1) >= 0:
+                return None  # 기본 입력 장치 정상
+        except Exception:
+            pass
+
+        # 기본 장치 없음 → 사용 가능한 첫 번째 입력 장치 자동 선택
+        for i, dev in enumerate(sd.query_devices()):
+            if dev["max_input_channels"] > 0:
+                return i
+
+        available = self.list_devices()
+        raise RuntimeError(
+            "마이크를 찾을 수 없습니다.\n"
+            "설정 탭 > [장치 목록 조회] 버튼으로 사용 가능한 장치를 확인하세요.\n"
+            f"현재 감지된 입력 장치:\n{available}"
+        )
 
     # ------------------------------------------------------------------
     # 녹음 제어
