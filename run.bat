@@ -18,12 +18,12 @@ set NO_PROXY=localhost,127.0.0.1,0.0.0.0
 rem /k keeps the window open after crash so the error is visible.
 start "WhisperNote" cmd /k python app.py
 
-rem Wait until port 7860 is actually listening (max 60s, checks every 2s).
-rem torch/whisperX imports can take 30+ seconds on first run.
-echo Waiting for server (may take 30+ seconds on first run)...
+rem Wait until port 7860 is actually listening (max 150s, checks every 2s).
+rem torch/whisperX imports can take 60+ seconds on first run.
+echo Waiting for server (may take 1-2 minutes on first run)...
 set _t=0
 :_wait
-if %_t% GEQ 30 goto _open
+if %_t% GEQ 75 goto _open
 timeout /t 2 /nobreak >nul
 set /a _t+=1
 netstat -an 2>nul | findstr ":7860" | findstr "LISTENING" >nul

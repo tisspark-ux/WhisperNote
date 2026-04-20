@@ -1,6 +1,11 @@
-__version__ = "0.6.2"
+__version__ = "0.6.3"
 
 CHANGELOG = """
+v0.6.3 (2026-04-20)
+  - app.py: Korean progress prints before heavy imports (flush=True) - no more black window
+  - run.bat: netstat timeout 60s -> 150s (torch/whisperx can take 60+ sec)
+  - CLAUDE.md: Korean console message rule added
+
 v0.6.2 (2026-04-20)
   - install.bat: pip -q shows download progress bar only (hides verbose collecting/building text)
   - install.bat: stderr-only log (install_log.txt) - errors captured, normal output clean

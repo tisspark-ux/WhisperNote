@@ -56,6 +56,9 @@ proxy config, version detection, etc. must go in Python (app.py or helpers).
 
 Always respond to the user in Korean only. Do not use English in user-facing responses.
 
+Python console print messages (startup progress, status output) must be written in Korean.
+Exception: .bat files must remain ASCII-only (English), per the absolute rule above.
+
 ## Versioning rules
 
 Use semantic versioning: MAJOR.MINOR.PATCH

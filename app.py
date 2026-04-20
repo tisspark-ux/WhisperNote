@@ -36,6 +36,9 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+print("WhisperNote 시작 중...", flush=True)
+print("  [1/3] 네트워크 라이브러리 로딩...", flush=True)
+
 # 회사 프록시 SSL 인증서 우회 (자체 서명 인증서 체인 오류 방지)
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -49,6 +52,7 @@ def _no_ssl_verify(self, method, url, **kwargs):
     return _orig_req(self, method, url, **kwargs)
 _req.Session.request = _no_ssl_verify
 
+print("  [2/3] Gradio 로딩...", flush=True)
 import gradio as gr
 
 # Gradio 4.x bug: several gradio_client.utils functions crash when a JSON Schema
@@ -99,6 +103,7 @@ try:
 except Exception:
     pass
 
+print("  [3/3] AI 라이브러리 로딩 중 (최초 실행 시 30초 이상 소요)...", flush=True)
 from version import __version__
 from config import OLLAMA_MODEL
 from recorder import AudioRecorder
@@ -622,6 +627,7 @@ python app.py
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
+    print("  서버 시작 중 (포트 7860)...", flush=True)
     demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
