@@ -5,7 +5,9 @@
 av
 
 # UI
-gradio>=4.0.0,<5.0.0
+# starlette<0.40.0: 0.40+ changed TemplateResponse signature breaking Gradio 4.x
+gradio>=4.44.1,<5.0.0
+starlette>=0.37.2,<0.40.0
 pillow>=10.0.0
 
 # 오디오 녹음 / 처리
