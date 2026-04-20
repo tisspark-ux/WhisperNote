@@ -1,6 +1,13 @@
-__version__ = "0.6.6"
+__version__ = "0.6.7"
 
 CHANGELOG = """
+v0.6.7 (2026-04-20)
+  - transcriber.py: faster_whisper.WhisperModel 직접 사용 (whisperx.load_model 대체)
+    whisperx.load_model이 pyannote/segmentation VAD 필요 -> 인증 실패 문제 우회
+  - transcriber.py: vad_filter=False, 정렬 단계에서만 whisperx 사용 (선택적)
+  - recorder.py: 녹음 시작 상태에 실제 장치명 표시
+  - CLAUDE.md: 계획 파일 한국어 작성 규칙 추가
+
 v0.6.6 (2026-04-20)
   - app.py: auto pipeline (transcribe + summarize) after recording stops via .then()
 

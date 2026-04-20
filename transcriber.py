@@ -5,6 +5,7 @@ from math import gcd
 import numpy as np
 import torch
 import whisperx
+from faster_whisper import WhisperModel
 
 from config import (
     ENABLE_DIARIZATION,
@@ -72,11 +73,12 @@ class Transcriber:
 
     def _load_model(self):
         if self._model is None:
-            self._model = whisperx.load_model(
+            # faster_whisper 직접 사용 — whisperx.load_model()은 pyannote VAD 필요
+            self._model = WhisperModel(
                 WHISPER_MODEL,
-                self.device,
+                device=self.device,
                 compute_type=self.compute_type,
-                language=WHISPER_LANGUAGE,
+                download_root=str(Path(__file__).parent / "models"),
             )
 
     # ------------------------------------------------------------------
@@ -103,36 +105,41 @@ class Transcriber:
             if on_progress:
                 on_progress(msg)
 
-        _progress("WhisperX 모델 로딩 중...")
+        _progress("Whisper 모델 로딩 중...")
         self._load_model()
 
         _progress("오디오 전사 중...")
-        audio = whisperx.load_audio(audio_path)
-        result = self._model.transcribe(
-            audio,
-            batch_size=WHISPER_BATCH_SIZE,
+        # faster_whisper: 파일 경로 직접 전달, generator 반환
+        fw_segments, _ = self._model.transcribe(
+            audio_path,
             language=WHISPER_LANGUAGE,
+            beam_size=5,
+            vad_filter=False,
         )
+        segments = [
+            {"start": s.start, "end": s.end, "text": s.text}
+            for s in fw_segments
+        ]
 
         # 정렬(Alignment) — 실패 시 원본 세그먼트 유지
         try:
             _progress("타임스탬프 정렬 중...")
+            audio = whisperx.load_audio(audio_path)
             align_model, metadata = whisperx.load_align_model(
                 language_code=WHISPER_LANGUAGE,
                 device=self.device,
             )
-            result = whisperx.align(
-                result["segments"],
+            aligned = whisperx.align(
+                segments,
                 align_model,
                 metadata,
                 audio,
                 self.device,
                 return_char_alignments=False,
             )
+            segments = aligned.get("segments", segments)
         except Exception:
             pass
-
-        segments = result.get("segments", [])
 
         # 화자 분리(Diarization) — resemblyzer 기반, 완전 오프라인
         diarization_ok = False

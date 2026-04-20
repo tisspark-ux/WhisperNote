@@ -111,8 +111,12 @@ class AudioRecorder:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             self.current_file = RECORDINGS_DIR / f"{timestamp}.wav"
 
-            source_label = "시스템 오디오 (loopback)" if INPUT_SOURCE == "loopback" else "마이크"
-            return str(self.current_file), f"녹음 시작 ({source_label})"
+            device_name = dev_info.get("name", "알 수 없음")
+            if INPUT_SOURCE == "loopback":
+                source_label = f"시스템 오디오 (loopback): {device_name}"
+            else:
+                source_label = f"마이크: {device_name}"
+            return str(self.current_file), f"녹음 시작 — {source_label}"
 
         except Exception as exc:
             self.recording = False

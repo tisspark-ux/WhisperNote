@@ -59,6 +59,8 @@ Always respond to the user in Korean only. Do not use English in user-facing res
 Python console print messages (startup progress, status output) must be written in Korean.
 Exception: .bat files must remain ASCII-only (English), per the absolute rule above.
 
+Plan files (plan mode) must also be written in Korean.
+
 ## Versioning rules
 
 Use semantic versioning: MAJOR.MINOR.PATCH
