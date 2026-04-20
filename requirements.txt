@@ -1,7 +1,7 @@
-# WhisperNote 의존성
-# torch 는 install.bat 에서 CUDA 버전에 맞게 별도 설치됨 (여기서 제외)
+# WhisperNote dependencies
+# torch is installed separately in install.bat with the correct CUDA index URL
 
-# ffmpeg 라이브러리 (시스템 ffmpeg 바이너리 불필요 — PyAV가 pip으로 번들 제공)
+# ffmpeg bundled via PyAV (no system ffmpeg binary needed)
 av
 
 # UI
@@ -10,20 +10,20 @@ gradio>=4.44.1,<5.0.0
 starlette>=0.37.2,<0.40.0
 pillow>=10.0.0
 
-# 오디오 녹음 / 처리
+# Audio recording / processing
 sounddevice
 soundfile
 numpy
 scipy
 
-# 전사 (의존성 순서 중요: pyannote 먼저 고정 후 whisperx)
-pyannote.audio==3.4.0  # 4.x 는 whisperx 미지원 (github issue #1241)
+# Transcription (pyannote pinned before whisperx to avoid version conflict)
+pyannote.audio==3.4.0
 whisperx
 
-# 화자 분리
-webrtcvad-wheels        # webrtcvad C++ 빌드 대체 (install.bat 에서 먼저 설치)
-# resemblyzer 는 install.bat 에서 --no-deps 로 별도 설치 (webrtcvad 의존성 충돌 방지)
+# Speaker diarization
+webrtcvad-wheels
+# resemblyzer installed via install.bat --no-deps (avoids webrtcvad build conflict)
 scikit-learn
 
-# Ollama HTTP 클라이언트
+# Ollama HTTP client
 requests

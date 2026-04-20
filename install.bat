@@ -47,7 +47,7 @@ if not errorlevel 1 (
     for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v already installed, skipping.
     goto torch_done
 )
-echo   Downloading PyTorch (CUDA 13.0) — this may take a while...
+echo   Downloading PyTorch (CUDA 13.0) - this may take a while...
 %PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 >> %LOG% 2>&1
 if errorlevel 1 (
     echo [ERROR] PyTorch installation failed. Details:
