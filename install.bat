@@ -87,7 +87,7 @@ if errorlevel 1 (
 
 echo.
 echo ======================================
-echo  Setup complete! Run run.bat to start.
+echo  Setup complete! Starting WhisperNote...
 echo  Install log saved to: %LOG%
 echo ======================================
-pause
+call run.bat

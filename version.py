@@ -1,6 +1,11 @@
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 CHANGELOG = """
+v0.6.1 (2026-04-20)
+  - install.bat: remove final pause on success, auto-launch run.bat after install
+  - run.bat: confirmed no pause (no change needed)
+  - CLAUDE.md: add Korean-only response rule
+
 v0.6.0 (2026-04-20)
   - gradio_client.utils 3종 함수 일괄 패치: _json_schema_to_python_type,
     get_type, get_desc — boolean schema 처리 누락으로 인한 TypeError 완전 해결

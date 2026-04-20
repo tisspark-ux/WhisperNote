@@ -52,6 +52,10 @@ proxy config, version detection, etc. must go in Python (app.py or helpers).
 - starlette>=0.37.2,<0.40.0 (0.40+ TemplateResponse API change breaks Gradio 4.x)
 - gradio>=4.44.1,<5.0.0
 
+## Language rule
+
+Always respond to the user in Korean only. Do not use English in user-facing responses.
+
 ## Versioning rules
 
 Use semantic versioning: MAJOR.MINOR.PATCH
