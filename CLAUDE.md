@@ -51,3 +51,24 @@ proxy config, version detection, etc. must go in Python (app.py or helpers).
 - pyannote.audio==3.4.0 (4.x breaks whisperx)
 - starlette>=0.37.2,<0.40.0 (0.40+ TemplateResponse API change breaks Gradio 4.x)
 - gradio>=4.44.1,<5.0.0
+
+## Versioning rules
+
+Use semantic versioning: MAJOR.MINOR.PATCH
+
+- PATCH (0.x.y → 0.x.y+1): bug fix, patch tweak, no new user-visible feature
+- MINOR (0.x.0 → 0.x+1.0): new feature, new UI element, new dependency
+- MAJOR (x.0.0): architectural overhaul or breaking change
+
+On every change, BOTH of these must be updated together:
+1. `version.py` — set `__version__ = "X.Y.Z"`
+2. `version.py` — add entry to `CHANGELOG` at the top (newest first)
+
+Version is displayed in:
+- UI header badge: `gr.HTML(f"...<span>v{__version__}</span>...")` in app.py
+- Console on startup: `print(f"WhisperNote v{__version__}")` in app.py
+
+Commit message convention:
+- `feat: <description>` — new feature (MINOR bump)
+- `fix: <description>` — bug fix (PATCH bump)
+- `chore: <description>` — tooling, docs, no functional change (PATCH bump)
