@@ -2,9 +2,9 @@ __version__ = "0.6.2"
 
 CHANGELOG = """
 v0.6.2 (2026-04-20)
-  - install.bat: show all pip output in real-time (removed log file redirection)
-  - install.bat: sub-step labels [3a/3b/3c] for package install visibility
-  - install.bat: remove install_log.txt (errors now visible directly on screen)
+  - install.bat: pip -q shows download progress bar only (hides verbose collecting/building text)
+  - install.bat: stderr-only log (install_log.txt) - errors captured, normal output clean
+  - install.bat: per-step error check for [3a/3b/3c] with log dump on failure
 
 v0.6.1 (2026-04-20)
   - install.bat: remove final pause on success, auto-launch run.bat after install

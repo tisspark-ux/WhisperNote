@@ -4,6 +4,11 @@ echo  WhisperNote Setup
 echo ======================================
 echo.
 
+set LOG=install_log.txt
+echo WhisperNote install log > %LOG%
+date /t >> %LOG%
+echo. >> %LOG%
+
 rem Python version selection (prefer 3.12 > 3.11 > 3.13 > system default)
 set PYTHON_CMD=python
 py -3.13 --version >nul 2>&1
@@ -31,8 +36,8 @@ if not exist ".venv" (
 set PIP=.venv\Scripts\pip.exe
 set PYTHON=.venv\Scripts\python.exe
 
-echo   Upgrading pip...
-%PYTHON% -m pip install --upgrade pip
+rem Upgrade pip - silent (instant, no progress needed)
+%PYTHON% -m pip install --upgrade pip -q >> %LOG% 2>&1
 
 rem PyTorch (CUDA 13.0 / RTX A4000)
 echo [2/4] Installing PyTorch...
@@ -41,10 +46,11 @@ if not errorlevel 1 (
     for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v already installed, skipping.
     goto torch_done
 )
-echo   Downloading PyTorch (CUDA 13.0) - this may take a while...
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130
+echo   Downloading PyTorch (CUDA 13.0) - may take several minutes...
+%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 -q 2>> %LOG%
 if errorlevel 1 (
-    echo [ERROR] PyTorch installation failed. Scroll up to see details.
+    echo [ERROR] PyTorch installation failed. Error details:
+    type %LOG%
     pause & exit /b 1
 )
 echo   PyTorch installed.
@@ -53,13 +59,24 @@ echo   PyTorch installed.
 rem Other packages
 echo [3/4] Installing packages...
 echo   [3a] webrtcvad-wheels...
-%PIP% install webrtcvad-wheels
-echo   [3b] resemblyzer...
-%PIP% install resemblyzer --no-deps
-echo   [3c] requirements.txt...
-%PIP% install -r requirements.txt
+%PIP% install webrtcvad-wheels -q 2>> %LOG%
 if errorlevel 1 (
-    echo [ERROR] Package installation failed. Scroll up to see details.
+    echo [ERROR] webrtcvad-wheels failed. Error details:
+    type %LOG%
+    pause & exit /b 1
+)
+echo   [3b] resemblyzer...
+%PIP% install resemblyzer --no-deps -q 2>> %LOG%
+if errorlevel 1 (
+    echo [ERROR] resemblyzer failed. Error details:
+    type %LOG%
+    pause & exit /b 1
+)
+echo   [3c] requirements.txt (may take a few minutes)...
+%PIP% install -r requirements.txt -q 2>> %LOG%
+if errorlevel 1 (
+    echo [ERROR] requirements.txt failed. Error details:
+    type %LOG%
     pause & exit /b 1
 )
 echo   Packages installed.
