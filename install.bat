@@ -4,6 +4,12 @@ echo  WhisperNote Setup
 echo ======================================
 echo.
 
+rem All pip output is saved to install_log.txt for review.
+set LOG=install_log.txt
+echo WhisperNote install log > %LOG%
+date /t >> %LOG%
+echo. >> %LOG%
+
 rem Python version selection (prefer 3.12 > 3.11 > 3.13 > system default)
 set PYTHON_CMD=python
 py -3.13 --version >nul 2>&1
@@ -31,8 +37,8 @@ if not exist ".venv" (
 set PIP=.venv\Scripts\pip.exe
 set PYTHON=.venv\Scripts\python.exe
 
-rem Upgrade pip first to ensure binary wheel support
-%PYTHON% -m pip install --upgrade pip -q
+rem Upgrade pip
+%PYTHON% -m pip install --upgrade pip >> %LOG% 2>&1
 
 rem PyTorch (CUDA 13.0 / RTX A4000)
 echo [2/4] Installing PyTorch...
@@ -41,9 +47,11 @@ if not errorlevel 1 (
     for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v already installed, skipping.
     goto torch_done
 )
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 -q
+echo   Downloading PyTorch (CUDA 13.0) — this may take a while...
+%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 >> %LOG% 2>&1
 if errorlevel 1 (
-    echo [ERROR] PyTorch installation failed.
+    echo [ERROR] PyTorch installation failed. Details:
+    type %LOG%
     pause & exit /b 1
 )
 echo   PyTorch installed.
@@ -51,14 +59,20 @@ echo   PyTorch installed.
 
 rem Other packages
 echo [3/4] Installing packages...
-%PIP% install webrtcvad-wheels -q
-%PIP% install resemblyzer --no-deps -q
-%PIP% install -r requirements.txt -q
+echo --- webrtcvad-wheels --- >> %LOG%
+%PIP% install webrtcvad-wheels >> %LOG% 2>&1
+echo --- resemblyzer (no-deps) --- >> %LOG%
+%PIP% install resemblyzer --no-deps >> %LOG% 2>&1
+echo --- requirements.txt --- >> %LOG%
+%PIP% install -r requirements.txt >> %LOG% 2>&1
 if errorlevel 1 (
-    echo [ERROR] Package installation failed.
+    echo [ERROR] Package installation failed. Details:
+    echo.
+    type %LOG%
+    echo.
     pause & exit /b 1
 )
-echo   Packages installed.
+echo   Packages installed. (full log: %LOG%)
 
 rem Ollama
 echo [4/4] Checking Ollama...
@@ -74,5 +88,6 @@ if errorlevel 1 (
 echo.
 echo ======================================
 echo  Setup complete! Run run.bat to start.
+echo  Install log saved to: %LOG%
 echo ======================================
 pause

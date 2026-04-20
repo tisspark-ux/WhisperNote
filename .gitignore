@@ -3,7 +3,8 @@ __pycache__/
 *.pyc
 recordings/
 outputs/
+install_log.txt
 
-# WhisperX 모델 캐시 (HuggingFace 최초 다운로드 후 저장 — git 제외)
+# WhisperX model cache
 models/*
 !models/.gitkeep
