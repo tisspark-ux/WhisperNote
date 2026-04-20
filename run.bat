@@ -18,11 +18,20 @@ set NO_PROXY=localhost,127.0.0.1,0.0.0.0
 rem Start Gradio server in a separate window so logs stay visible.
 start "WhisperNote" python app.py
 
-rem Wait for Gradio to start, then open browser.
-rem Proxy bypass is handled by app.py via winreg at startup.
-timeout /t 6 /nobreak >nul
+rem Wait until port 7860 is actually listening (max 60s, checks every 2s).
+rem torch/whisperX imports can take 30+ seconds on first run.
+echo Waiting for server (may take 30+ seconds on first run)...
+set _t=0
+:_wait
+if %_t% GEQ 30 goto _open
+timeout /t 2 /nobreak >nul
+set /a _t+=1
+netstat -an 2>nul | findstr ":7860" | findstr "LISTENING" >nul
+if errorlevel 1 goto _wait
+:_open
+echo Server is ready. Opening browser...
 start http://127.0.0.1:7860
 
 echo.
 echo Access: http://127.0.0.1:7860
-echo Close the WhisperNote window to stop the server.
+echo Check the WhisperNote window for errors if the page fails to load.
