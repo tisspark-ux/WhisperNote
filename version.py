@@ -1,6 +1,12 @@
-__version__ = "0.6.7"
+__version__ = "0.6.8"
 
 CHANGELOG = """
+v0.6.8 (2026-04-20)
+  - UI: 녹음 버튼 위에 입력 장치 드롭다운 추가 (자동 감지 / 개별 선택)
+  - UI: 녹음 중 오디오 레벨 미터 표시 (0.2초 갱신, 80% 이상 빨간색)
+  - recorder.py: start(device_override) — UI 선택 장치 직접 전달
+  - recorder.py: get_level() — 최근 버퍼 RMS 0~100 반환
+
 v0.6.7 (2026-04-20)
   - transcriber.py: faster_whisper.WhisperModel 직접 사용 (whisperx.load_model 대체)
     whisperx.load_model이 pyannote/segmentation VAD 필요 -> 인증 실패 문제 우회

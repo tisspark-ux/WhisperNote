@@ -77,13 +77,27 @@ class AudioRecorder:
     # 녹음 제어
     # ------------------------------------------------------------------
 
-    def start(self) -> tuple[str | None, str]:
-        """녹음 시작. (파일경로 | None, 상태 메시지) 반환."""
+    def get_level(self) -> float:
+        """현재 녹음 버퍼의 RMS 레벨을 0–100 으로 반환."""
+        if not self.recording:
+            return 0.0
+        with self.lock:
+            if not self.audio_data:
+                return 0.0
+            recent = self.audio_data[-8:]
+        chunk = np.concatenate(recent)
+        rms = float(np.sqrt(np.mean(chunk ** 2)))
+        return min(100.0, rms * 1200)
+
+    def start(self, device_override=None) -> tuple[str | None, str]:
+        """녹음 시작. (파일경로 | None, 상태 메시지) 반환.
+        device_override: UI에서 선택한 장치 인덱스(int). None이면 자동 감지.
+        """
         if self.recording:
             return None, "이미 녹음 중입니다."
 
         try:
-            device = self._resolve_device()
+            device = device_override if device_override is not None else self._resolve_device()
 
             # 장치 기본 샘플레이트 확인
             dev_info = sd.query_devices(device, "input")

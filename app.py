@@ -316,14 +316,28 @@ body, .gradio-container {
     background: #0d1117 !important;
 }
 .wn-upload:hover { border-color: #6366f1 !important; }
+
+/* ── 오디오 레벨 미터 ── */
+.wn-level-bar {
+    background: #0d1117 !important;
+    border: 1px solid #2d3348 !important;
+    border-radius: 6px !important;
+    padding: 6px 10px !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    font-size: 0.85rem !important;
+    color: #6ee7b7 !important;
+    letter-spacing: 2px;
+}
+.wn-level-idle { color: #4b5563 !important; letter-spacing: normal; }
 """
 
 # ---------------------------------------------------------------------------
 # 로직 함수
 # ---------------------------------------------------------------------------
 
-def handle_start_recording():
-    file_path, msg = recorder.start()
+def handle_start_recording(device_idx):
+    device = None if device_idx == -1 else int(device_idx)
+    file_path, msg = recorder.start(device_override=device)
     if file_path:
         return (
             gr.update(interactive=False),
@@ -426,6 +440,30 @@ def list_audio_devices():
     return recorder.list_devices()
 
 
+def get_input_device_choices():
+    """UI 드롭다운용 (레이블, 인덱스) 선택지 목록 반환."""
+    import sounddevice as sd
+    choices = [("자동 감지 (기본값)", -1)]
+    for i, dev in enumerate(sd.query_devices()):
+        if dev["max_input_channels"] > 0:
+            choices.append((f"[{i}] {dev['name']}", i))
+    return choices
+
+
+def get_level_html():
+    """녹음 중 오디오 레벨을 HTML 막대로 반환. demo.load every=0.2 로 주기 호출."""
+    level = recorder.get_level()
+    if not recorder.recording:
+        return '<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
+    filled = int(level / 10)
+    bar = "█" * filled + "░" * (10 - filled)
+    color = "#ef4444" if level > 80 else "#6ee7b7"
+    return (
+        f'<div class="wn-level-bar" style="color:{color}">'
+        f'{bar} &nbsp;{level:.0f}%</div>'
+    )
+
+
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
@@ -454,10 +492,20 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
                     # 녹음
                     gr.HTML('<div class="wn-label">녹음</div>')
+                    input_device = gr.Dropdown(
+                        label="입력 장치",
+                        choices=[("자동 감지 (기본값)", -1)],
+                        value=-1,
+                        interactive=True,
+                        elem_classes="wn-dropdown",
+                    )
                     with gr.Row():
                         btn_start = gr.Button("● 녹음 시작", elem_id="btn-start")
                         btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False)
 
+                    level_display = gr.HTML(
+                        value='<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
+                    )
                     record_status = gr.Textbox(
                         value="대기 중",
                         interactive=False,
@@ -610,8 +658,15 @@ python app.py
                 btn_list_devices.click(list_audio_devices, outputs=device_list_output)
 
     # ── 이벤트 연결 ──────────────────────────────────────────
+    demo.load(
+        lambda: gr.Dropdown(choices=get_input_device_choices(), value=-1),
+        outputs=[input_device],
+    )
+    demo.load(get_level_html, outputs=[level_display], every=0.2)
+
     btn_start.click(
         handle_start_recording,
+        inputs=[input_device],
         outputs=[btn_start, btn_stop, record_status, recorded_file],
     )
     btn_stop.click(
