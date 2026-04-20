@@ -51,6 +51,20 @@ _req.Session.request = _no_ssl_verify
 
 import gradio as gr
 
+# Gradio 4.x bug: get_type() in gradio_client crashes when schema is a boolean
+# (True/False are valid JSON Schema values meaning "any"/"never").
+# show_api=False doesn't prevent schema generation, so patch get_type directly.
+try:
+    import gradio_client.utils as _gcu
+    _orig_get_type = _gcu.get_type
+    def _get_type_patched(schema):
+        if isinstance(schema, bool):
+            return "any"
+        return _orig_get_type(schema)
+    _gcu.get_type = _get_type_patched
+except Exception:
+    pass
+
 # Gradio의 localhost 접근 가능 여부 체크 함수를 패치
 # 회사 프록시가 localhost까지 차단하는 환경 대응
 # (Gradio 버전마다 내부 API가 다를 수 있으므로 try/except 로 감쌈)
