@@ -61,6 +61,15 @@ Exception: .bat files must remain ASCII-only (English), per the absolute rule ab
 
 Plan files (plan mode) must also be written in Korean.
 
+## 수정 전 계획 공유 규칙
+
+**소스 코드를 수정하기 전에 반드시 계획을 사용자에게 먼저 보여줄 것.**
+
+- 어떤 파일을 왜 수정하는지 명확히 설명
+- 예상 영향도 및 변경 범위 포함
+- 사용자 승인 후에만 실제 코드 수정 진행
+- 사소한 1줄 수정(오타, 주석 등)도 예외 없이 계획 먼저 제시
+
 ## 수정 후 영향도 체크 및 커밋 규칙
 
 모든 수정 작업은 아래 순서를 반드시 따를 것:
