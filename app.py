@@ -338,7 +338,8 @@ body, .gradio-container {
 #wn-level-wrap > div { height: 36px !important; }
 
 /* ── 분류 설정 패널 ── */
-.wn-cat-panel { margin-bottom: 1rem !important; }
+.wn-cat-panel { margin-bottom: 1rem !important; position: relative !important; }
+#btn-cat-close { position: absolute !important; top: 0.6rem !important; right: 0.6rem !important; width: auto !important; min-width: 70px !important; }
 .wn-cat-col { border-right: 1px solid #1e2130; padding-right: 0.6rem !important; min-height: 160px; }
 .wn-cat-col:last-child { border-right: none !important; }
 .wn-cat-col-header {
@@ -348,7 +349,6 @@ body, .gradio-container {
 }
 /* Radio 스타일 */
 .wn-cat-radio fieldset { border: none !important; padding: 0 !important; margin: 0 !important; }
-.wn-cat-radio span { display: none !important; }
 .wn-cat-radio label {
     display: flex !important; align-items: center !important;
     padding: 0.25rem 0.4rem !important; border-radius: 5px !important;
@@ -616,6 +616,12 @@ def init_cat_ui(data):
     ch = _cat_choices(data, None)
     return gr.update(choices=ch, value=None), gr.update(choices=ch, value=None)
 
+# 패널 닫기 + 드롭다운 choices 재동기화 (cascade 순서 문제 방지)
+def sync_dropdowns_on_close(data, l1_id, l2_id):
+    l2_ch = _cat_choices(data, l1_id)
+    l3_ch = _cat_choices(data, l2_id)
+    return gr.update(visible=False), gr.update(choices=l2_ch), gr.update(choices=l3_ch)
+
 
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
     return recorded if recorded else uploaded
@@ -783,9 +789,8 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
             # 분류 설정 패널 (전체 너비, 기본 숨김)
             # ════════════════════════════════════════════════════════
             with gr.Column(visible=False, elem_id="cat-panel", elem_classes="wn-card wn-cat-panel") as cat_panel:
-                with gr.Row():
-                    gr.HTML('<div class="wn-label" style="flex:1;margin:0">📁 분류 설정</div>')
-                    btn_cat_close = gr.Button("✕ 접기", elem_classes="wn-btn-secondary", min_width=70, scale=0)
+                gr.HTML('<div class="wn-label" style="margin:0 0 0.6rem">📁 분류 설정</div>')
+                btn_cat_close = gr.Button("✕ 접기", elem_id="btn-cat-close", elem_classes="wn-btn-secondary", min_width=70, scale=0)
                 with gr.Row(equal_height=False):
                     with gr.Column(scale=1, elem_classes="wn-cat-col"):
                         cat1_header = gr.HTML(_col_header(1))
@@ -1008,7 +1013,7 @@ python app.py
 
     # 분류 설정 패널 열기/닫기
     btn_cat_settings.click(cat_open_panel, outputs=[cat_panel])
-    btn_cat_close.click(cat_close_panel, outputs=[cat_panel])
+    btn_cat_close.click(sync_dropdowns_on_close, inputs=[cat_data, cat_l1, cat_l2], outputs=[cat_panel, cat_l2, cat_l3])
 
     # 설정 패널 라디오 cascade
     _l1_out = [cat2_radio, cat3_radio, cat2_header, cat3_header, cat_l1, cat_l2, cat_l3, cat_path_display]

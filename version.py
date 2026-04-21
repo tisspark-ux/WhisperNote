@@ -1,6 +1,13 @@
-__version__ = "0.9.3"
+__version__ = "0.9.4"
 
 CHANGELOG = """
+v0.9.4 (2026-04-21)
+  - [수정] 분류 설정 패널 라디오 항목 이름 표시 안 되는 버그 수정 (span CSS 제거)
+  - [수정] "접기" 버튼 레이아웃 깨짐 수정 (position: absolute 고정)
+  - [수정] 메인 화면 소분류 드롭다운 선택 불가 수정 (패널 닫힐 때 choices 재동기화)
+  - app.py: sync_dropdowns_on_close 추가, btn_cat_close.click 연결 변경
+
+
 v0.9.3 (2026-04-21)
   - [수정] 레벨 미터 깜빡임 완전 제거
   - Gradio SSE 갱신 방식 → JavaScript setInterval + /api/level 폴링으로 교체
