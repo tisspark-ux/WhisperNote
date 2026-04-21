@@ -16,11 +16,14 @@ INPUT_SOURCE = "microphone"
 LOOPBACK_DEVICE_INDEX = None  # None = 자동 감지, 또는 장치 인덱스(int) 지정
 
 # WhisperX 설정
-WHISPER_MODEL = "large-v3-turbo"  # tiny / base / small / medium / large-v3 / large-v3-turbo
-WHISPER_LANGUAGE = "ko"           # 전사 언어
-WHISPER_DEVICE = "cuda"           # "cuda" (GPU) 또는 "cpu"
-WHISPER_COMPUTE_TYPE = "float16"  # GPU: "float16" / CPU: "int8"
-WHISPER_BATCH_SIZE = 16
+WHISPER_MODEL          = "large-v3-turbo"  # tiny / base / small / medium / large-v3 / large-v3-turbo
+WHISPER_LANGUAGE       = "ko"              # 전사 언어
+WHISPER_DEVICE         = "cuda"            # "cuda" (GPU) 또는 "cpu"
+WHISPER_COMPUTE_TYPE   = "float16"         # GPU: "float16" / CPU: "int8"
+WHISPER_BATCH_SIZE     = 16
+WHISPER_BEAM_SIZE      = 10               # 높을수록 정확도 향상 (기본 5)
+WHISPER_VAD_FILTER     = True             # 무음/잡음 구간 hallucination 방지
+WHISPER_INITIAL_PROMPT = "다음은 한국어 회의 녹음입니다."  # 한국어 인식률 향상
 
 # 화자 분리 (Speaker Diarization)
 # resemblyzer + SpectralClustering 기반 — HuggingFace 불필요, 완전 오프라인

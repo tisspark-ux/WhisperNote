@@ -12,10 +12,13 @@ from config import (
     NUM_SPEAKERS,
     OUTPUTS_DIR,
     WHISPER_BATCH_SIZE,
+    WHISPER_BEAM_SIZE,
     WHISPER_COMPUTE_TYPE,
     WHISPER_DEVICE,
+    WHISPER_INITIAL_PROMPT,
     WHISPER_LANGUAGE,
     WHISPER_MODEL,
+    WHISPER_VAD_FILTER,
 )
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
@@ -114,8 +117,14 @@ class Transcriber:
         fw_segments, _ = self._model.transcribe(
             audio_path,
             language=WHISPER_LANGUAGE,
-            beam_size=5,
-            vad_filter=False,
+            beam_size=WHISPER_BEAM_SIZE,
+            vad_filter=WHISPER_VAD_FILTER,
+            initial_prompt=WHISPER_INITIAL_PROMPT,
+            temperature=0,
+            condition_on_previous_text=True,
+            no_speech_threshold=0.6,
+            compression_ratio_threshold=2.4,
+            log_prob_threshold=-1.0,
         )
         segments = [
             {"start": s.start, "end": s.end, "text": s.text}

@@ -1,6 +1,12 @@
-__version__ = "0.9.6"
+__version__ = "0.9.7"
 
 CHANGELOG = """
+v0.9.7 (2026-04-22)
+  - [개선] 전사 품질 향상: beam_size 5→10, VAD 필터 활성화, 한국어 초기 프롬프트 추가
+  - [개선] temperature=0 (결정론적 출력), condition_on_previous_text=True (문맥 연속성)
+  - config.py: WHISPER_BEAM_SIZE, WHISPER_VAD_FILTER, WHISPER_INITIAL_PROMPT 추가
+
+
 v0.9.6 (2026-04-22)
   - [기능] 전사 결과 파일 경로 옆 "📂 폴더 열기" 버튼 추가
   - [기능] 요약 결과 파일 경로 옆 "📂 폴더 열기" 버튼 추가
