@@ -624,6 +624,20 @@ def sync_dropdowns_on_close(data, l1_id, l2_id):
     return gr.update(visible=False), gr.update(choices=l2_ch), gr.update(choices=l3_ch)
 
 
+def handle_open_folder(path: str):
+    if not path:
+        return
+    import subprocess
+    target = Path(path.strip())
+    folder = target.parent if target.is_file() else target
+    if not folder.exists():
+        return
+    if sys.platform == "win32":
+        subprocess.Popen(["explorer", str(folder)])
+    else:
+        os.startfile(str(folder))
+
+
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
     return recorded if recorded else uploaded
 
@@ -861,13 +875,16 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_id="record-status",
                         lines=1,
                     )
-                    recorded_file = gr.Textbox(
-                        interactive=False,
-                        show_label=False,
-                        placeholder="녹음 후 파일 경로 자동 표시",
-                        elem_classes="wn-filepath",
-                        lines=1,
-                    )
+                    with gr.Row():
+                        recorded_file = gr.Textbox(
+                            interactive=False,
+                            show_label=False,
+                            placeholder="녹음 후 파일 경로 자동 표시",
+                            elem_classes="wn-filepath",
+                            lines=1,
+                            scale=5,
+                        )
+                        btn_open_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">파일 업로드</div>')
                     uploaded_file = gr.Audio(
@@ -1066,6 +1083,7 @@ python app.py
     btn_pause.click(handle_pause_resume, outputs=[btn_pause, record_status])
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
+    btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
 
     # 전사/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]

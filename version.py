@@ -1,6 +1,11 @@
-__version__ = "0.9.4"
+__version__ = "0.9.5"
 
 CHANGELOG = """
+v0.9.5 (2026-04-22)
+  - [기능] 녹음 파일 경로 옆 "📂 폴더 열기" 버튼 추가
+  - Windows: explorer로 해당 폴더 열기, 기타 OS: os.startfile fallback
+
+
 v0.9.4 (2026-04-21)
   - [수정] 분류 설정 패널 라디오 항목 이름 표시 안 되는 버그 수정 (span CSS 제거)
   - [수정] "접기" 버튼 레이아웃 깨짐 수정 (position: absolute 고정)
