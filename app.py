@@ -333,6 +333,9 @@ body, .gradio-container {
     letter-spacing: 2px;
 }
 .wn-level-idle { color: #4b5563 !important; letter-spacing: normal; }
+/* 레벨 미터 컨테이너 높이 고정 — 0.2s 갱신 시 레이아웃 흔들림 방지 */
+#wn-level-wrap { min-height: 36px !important; height: 36px !important; overflow: hidden !important; }
+#wn-level-wrap > div { height: 36px !important; }
 
 /* ── 분류 설정 패널 ── */
 .wn-cat-panel { margin-bottom: 1rem !important; }
@@ -719,18 +722,17 @@ def get_input_device_choices():
 def get_level_html():
     """녹음 중 오디오 레벨을 HTML 막대로 반환. demo.load every=0.2 로 주기 호출."""
     if recorder.paused:
-        return '<div class="wn-level-bar wn-level-idle">⏸ 일시정지됨</div>'
-    level = recorder.get_level()
-    if not (recorder.recording or recorder.testing):
-        return '<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
-    filled = int(level / 10)
-    bar = "█" * filled + "░" * (10 - filled)
-    color = "#ef4444" if level > 80 else "#6ee7b7"
-    prefix = "테스트 " if recorder.testing else ""
-    return (
-        f'<div class="wn-level-bar" style="color:{color}">'
-        f'{prefix}{bar}&nbsp;{level:.0f}%</div>'
-    )
+        color, text = "#4b5563", "⏸ 일시정지됨"
+    elif not (recorder.recording or recorder.testing):
+        color, text = "#4b5563", "마이크 대기 중"
+    else:
+        level = recorder.get_level()
+        filled = int(level / 10)
+        bar = "█" * filled + "░" * (10 - filled)
+        color = "#ef4444" if level > 80 else "#6ee7b7"
+        prefix = "테스트 " if recorder.testing else ""
+        text = f"{prefix}{bar}&nbsp;{level:.0f}%"
+    return f'<div class="wn-level-bar" style="color:{color};height:36px;display:flex;align-items:center">{text}</div>'
 
 
 # ---------------------------------------------------------------------------
@@ -825,7 +827,8 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
 
                     level_display = gr.HTML(
-                        value='<div class="wn-level-bar wn-level-idle">마이크 대기 중</div>'
+                        value='<div class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
+                        elem_id="wn-level-wrap",
                     )
                     record_status = gr.Textbox(
                         value="대기 중",

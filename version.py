@@ -1,6 +1,11 @@
-__version__ = "0.9.1"
+__version__ = "0.9.2"
 
 CHANGELOG = """
+v0.9.2 (2026-04-21)
+  - [수정] 레벨 미터 0.2초 갱신 시 레이아웃 깜빡임 현상 수정
+  - gr.HTML elem_id + CSS height 고정으로 Gradio 갱신 중 높이 변화 방지
+  - get_level_html: 항상 동일한 height:36px flex 컨테이너로 렌더링
+
 v0.9.1 (2026-04-21)
   - [변경] 분류 파일 저장 경로 sessions/ → outputs/L1/L2/L3/ 로 변경
   - storage.py: SESSIONS_DIR 제거, OUTPUTS_DIR 기반으로 통일
