@@ -1,6 +1,11 @@
-__version__ = "0.9.0"
+__version__ = "0.9.1"
 
 CHANGELOG = """
+v0.9.1 (2026-04-21)
+  - [변경] 분류 파일 저장 경로 sessions/ → outputs/L1/L2/L3/ 로 변경
+  - storage.py: SESSIONS_DIR 제거, OUTPUTS_DIR 기반으로 통일
+  - config.py: SESSIONS_DIR 항목 제거
+
 v0.9.0 (2026-04-21)
   - [기능] 3단계 분류 선택 (대분류/중분류/소분류) — Studio 탭 녹음 위
   - [기능] 분류 설정 패널 (Miller Column) — 추가/수정/삭제 인라인 CRUD

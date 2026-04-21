@@ -472,7 +472,7 @@ def _path_html(data: list, l1, l2, l3) -> str:
     parts = [cat_mod.get_name(data, x) for x in (l1, l2, l3) if x]
     if not parts:
         return '<div class="wn-cat-path">분류 미선택</div>'
-    return f'<div class="wn-cat-path wn-cat-path-active">📁 sessions/{" / ".join(parts)}/</div>'
+    return f'<div class="wn-cat-path wn-cat-path-active">📁 outputs/{" / ".join(parts)}/</div>'
 
 def _out_dir(data: list, l1, l2, l3):
     n1, n2, n3 = (cat_mod.get_name(data, x) for x in (l1, l2, l3))

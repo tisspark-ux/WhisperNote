@@ -4,7 +4,6 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parent
 RECORDINGS_DIR = BASE_DIR / "recordings"
 OUTPUTS_DIR = BASE_DIR / "outputs"
-SESSIONS_DIR = BASE_DIR / "sessions"
 CATEGORIES_FILE = BASE_DIR / "categories.json"
 
 # 오디오 설정
