@@ -126,6 +126,8 @@ from config import OLLAMA_MODEL
 from recorder import AudioRecorder, is_loopback_device_name
 from summarizer import Summarizer
 from transcriber import Transcriber
+import categories as cat_mod
+import storage
 
 _LOOPBACK_AUTO = -2
 
@@ -331,13 +333,53 @@ body, .gradio-container {
     letter-spacing: 2px;
 }
 .wn-level-idle { color: #4b5563 !important; letter-spacing: normal; }
+
+/* ── 분류 설정 패널 ── */
+.wn-cat-panel { margin-bottom: 1rem !important; }
+.wn-cat-col { border-right: 1px solid #1e2130; padding-right: 0.6rem !important; min-height: 160px; }
+.wn-cat-col:last-child { border-right: none !important; }
+.wn-cat-col-header {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.06em;
+    text-transform: uppercase; color: #818cf8;
+    padding: 0.3rem 0; border-bottom: 1px solid #2d3348; margin-bottom: 0.4rem;
+}
+/* Radio 스타일 */
+.wn-cat-radio fieldset { border: none !important; padding: 0 !important; margin: 0 !important; }
+.wn-cat-radio span { display: none !important; }
+.wn-cat-radio label {
+    display: flex !important; align-items: center !important;
+    padding: 0.25rem 0.4rem !important; border-radius: 5px !important;
+    color: #9ca3af !important; font-size: 0.86rem !important;
+    cursor: pointer !important; transition: background .12s !important;
+    gap: 0.4rem !important;
+}
+.wn-cat-radio label:hover { background: #1e2130 !important; }
+.wn-cat-radio label:has(input:checked) { background: #1e2130 !important; color: #e8eaf6 !important; font-weight: 500 !important; }
+.wn-cat-radio label:has(input:checked)::before { content: "▶"; color: #818cf8; font-size: 0.6rem; }
+.wn-cat-radio label:not(:has(input:checked))::before { content: "  "; }
+/* 분류 소형 버튼 */
+.wn-cat-btn-sm {
+    background: #161b27 !important; border: 1px solid #2d3348 !important;
+    border-radius: 5px !important; color: #6b7280 !important;
+    font-size: 0.78rem !important; height: 28px !important;
+    padding: 0 0.5rem !important; min-width: 0 !important;
+    transition: all .12s !important;
+}
+.wn-cat-btn-sm:hover { border-color: #818cf8 !important; color: #818cf8 !important; background: #1e2130 !important; }
+.wn-cat-btn-del:hover { border-color: #ef4444 !important; color: #ef4444 !important; }
+/* 경로 표시 */
+.wn-cat-path { font-size: 0.76rem !important; font-family: 'JetBrains Mono', monospace !important; color: #4b5563 !important; padding: 0.25rem 0 !important; }
+.wn-cat-path-active { color: #818cf8 !important; }
+/* 설정 버튼 */
+#btn-cat-settings { background: #161b27 !important; border: 1px solid #2d3348 !important; border-radius: 8px !important; color: #6b7280 !important; height: 36px !important; min-width: 36px !important; }
+#btn-cat-settings:hover { border-color: #818cf8 !important; color: #818cf8 !important; }
 """
 
 # ---------------------------------------------------------------------------
 # 로직 함수
 # ---------------------------------------------------------------------------
 
-def handle_start_recording(device_idx):
+def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id):
     if device_idx == _LOOPBACK_AUTO:
         loopback_idx, _ = recorder.find_loopback_device()
         if loopback_idx is None:
@@ -352,7 +394,7 @@ def handle_start_recording(device_idx):
         device = None
     else:
         device = int(device_idx)
-    file_path, msg = recorder.start(device_override=device)
+    file_path, msg = recorder.start(device_override=device, output_dir=_wav_dir(cat_data_val, l1_id, l2_id, l3_id))
     if file_path:
         return (
             gr.update(interactive=False),                        # btn_start
@@ -413,18 +455,179 @@ def handle_mic_test(device_idx):
         return gr.update(value="테스트 중지"), msg
 
 
+# ---------------------------------------------------------------------------
+# 카테고리 헬퍼
+# ---------------------------------------------------------------------------
+
+def _cat_choices(data: list, parent_id) -> list:
+    return [(i["name"], i["id"]) for i in cat_mod.get_level_items(data, parent_id)]
+
+def _col_header(level: int, parent_name: str | None = None) -> str:
+    labels = {1: "대분류", 2: "중분류", 3: "소분류"}
+    base = labels[level]
+    suffix = f" ({parent_name})" if parent_name and level > 1 else ""
+    return f'<div class="wn-cat-col-header">{base}{suffix}</div>'
+
+def _path_html(data: list, l1, l2, l3) -> str:
+    parts = [cat_mod.get_name(data, x) for x in (l1, l2, l3) if x]
+    if not parts:
+        return '<div class="wn-cat-path">분류 미선택</div>'
+    return f'<div class="wn-cat-path wn-cat-path-active">📁 sessions/{" / ".join(parts)}/</div>'
+
+def _out_dir(data: list, l1, l2, l3):
+    n1, n2, n3 = (cat_mod.get_name(data, x) for x in (l1, l2, l3))
+    return storage.resolve_out_dir(n1, n2, n3)
+
+def _wav_dir(data: list, l1, l2, l3):
+    n1, n2, n3 = (cat_mod.get_name(data, x) for x in (l1, l2, l3))
+    return storage.resolve_wav_dir(n1, n2, n3)
+
+# 패널 열기/닫기
+def cat_open_panel():  return gr.update(visible=True)
+def cat_close_panel(): return gr.update(visible=False)
+
+# L1 radio 선택 → L2 초기화, 헤더 갱신, 드롭다운 갱신
+def on_panel_l1(data, l1_id):
+    l2_ch = _cat_choices(data, l1_id)
+    l1n = cat_mod.get_name(data, l1_id)
+    return (
+        gr.update(choices=l2_ch, value=None),
+        gr.update(choices=[], value=None),
+        gr.update(value=_col_header(2, l1n)),
+        gr.update(value=_col_header(3, None)),
+        gr.update(value=l1_id),
+        gr.update(choices=l2_ch, value=None),
+        gr.update(choices=[], value=None),
+        _path_html(data, l1_id, None, None),
+    )
+
+# L2 radio 선택 → L3 초기화, 헤더 갱신, 드롭다운 갱신
+def on_panel_l2(data, l1_id, l2_id):
+    l3_ch = _cat_choices(data, l2_id)
+    l2n = cat_mod.get_name(data, l2_id)
+    return (
+        gr.update(choices=l3_ch, value=None),
+        gr.update(value=_col_header(3, l2n)),
+        gr.update(value=l2_id),
+        gr.update(choices=l3_ch, value=None),
+        _path_html(data, l1_id, l2_id, None),
+    )
+
+# L3 radio 선택 → 드롭다운 + 경로 갱신
+def on_panel_l3(data, l1_id, l2_id, l3_id):
+    return gr.update(value=l3_id), _path_html(data, l1_id, l2_id, l3_id)
+
+# 메인 드롭다운 cascade
+def on_l1_change(data, l1_id):
+    l2_ch = _cat_choices(data, l1_id)
+    return gr.update(choices=l2_ch, value=None), gr.update(choices=[], value=None), _path_html(data, l1_id, None, None)
+
+def on_l2_change(data, l1_id, l2_id):
+    l3_ch = _cat_choices(data, l2_id)
+    return gr.update(choices=l3_ch, value=None), _path_html(data, l1_id, l2_id, None)
+
+def on_l3_change(data, l1_id, l2_id, l3_id):
+    return _path_html(data, l1_id, l2_id, l3_id)
+
+# 추가 시작
+def cat_start_add(ctx, col, parent_id=None):
+    lbl = {1: "대분류 추가", 2: "중분류 추가", 3: "소분류 추가"}
+    return (
+        {"col": col, "action": "add", "item_id": "", "parent_id": parent_id},
+        gr.update(visible=True),
+        gr.update(value="", label=lbl[col]),
+        "",
+    )
+
+# 수정 시작
+def cat_start_edit(data, ctx, col, item_id):
+    if not item_id:
+        return ctx, gr.update(visible=False), gr.update(), ""
+    lbl = {1: "대분류 수정", 2: "중분류 수정", 3: "소분류 수정"}
+    name = cat_mod.get_name(data, item_id) or ""
+    return (
+        {"col": col, "action": "edit", "item_id": item_id, "parent_id": None},
+        gr.update(visible=True),
+        gr.update(value=name, label=lbl[col]),
+        "",
+    )
+
+# 취소
+def cat_cancel(ctx):
+    return {"col": 0, "action": "", "item_id": "", "parent_id": None}, gr.update(visible=False), ""
+
+# 확인 (추가/수정 저장)
+def cat_confirm(data, ctx, input_val, l1_id, l2_id, l3_id):
+    name = input_val.strip()
+    if not name:
+        return data, ctx, gr.update(), gr.update(), gr.update(), gr.update(visible=True), "⚠ 이름을 입력하세요."
+    col, action = ctx["col"], ctx["action"]
+    pid, iid = ctx.get("parent_id"), ctx.get("item_id", "")
+    if action == "add":
+        data = cat_mod.add_item(data, name, pid)
+    elif action == "edit" and iid:
+        data = cat_mod.rename_item(data, iid, name)
+    cat_mod.save(data)
+    l1c = _cat_choices(data, None)
+    l2c = _cat_choices(data, l1_id) if l1_id else []
+    l3c = _cat_choices(data, l2_id) if l2_id else []
+    empty = {"col": 0, "action": "", "item_id": "", "parent_id": None}
+    return (
+        data, empty,
+        gr.update(choices=l1c, value=l1_id),
+        gr.update(choices=l2c, value=l2_id),
+        gr.update(choices=l3c, value=l3_id),
+        gr.update(visible=False), "",
+    )
+
+# 삭제
+def cat_delete(data, col, item_id, l1_id, l2_id, l3_id):
+    if not item_id:
+        return data, gr.update(), gr.update(), gr.update(), "⚠ 삭제할 항목을 선택하세요.", gr.update(), gr.update(), gr.update(), _path_html(data, l1_id, l2_id, l3_id)
+    n = cat_mod.count_descendants(data, item_id)
+    item_name = cat_mod.get_name(data, item_id)
+    data = cat_mod.delete_item(data, item_id)
+    cat_mod.save(data)
+    # 삭제된 항목이 선택 중이면 초기화
+    nl1 = None if l1_id == item_id else l1_id
+    nl2 = None if l2_id == item_id or nl1 is None else l2_id
+    nl3 = None if l3_id == item_id or nl2 is None else l3_id
+    l1c = _cat_choices(data, None)
+    l2c = _cat_choices(data, nl1) if nl1 else []
+    l3c = _cat_choices(data, nl2) if nl2 else []
+    msg = f"🗑 '{item_name}' 삭제 (하위 {n}개 포함)" if n else f"🗑 '{item_name}' 삭제"
+    return (
+        data,
+        gr.update(choices=l1c, value=nl1),
+        gr.update(choices=l2c, value=nl2),
+        gr.update(choices=l3c, value=nl3),
+        msg,
+        gr.update(value=nl1, choices=l1c),
+        gr.update(value=nl2, choices=l2c),
+        gr.update(value=nl3, choices=l3c),
+        _path_html(data, nl1, nl2, nl3),
+    )
+
+# 초기 로드
+def init_cat_ui(data):
+    ch = _cat_choices(data, None)
+    return gr.update(choices=ch, value=None), gr.update(choices=ch, value=None)
+
+
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
     return recorded if recorded else uploaded
 
 
-def handle_transcribe(recorded: str, uploaded: str | None, progress=gr.Progress()):
+def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, l2_id, l3_id, progress=gr.Progress()):
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
     try:
         progress(0.1, desc="전사 시작...")
         transcript, out_file = transcriber.transcribe(
-            audio, on_progress=lambda m: progress(0.5, desc=m)
+            audio,
+            on_progress=lambda m: progress(0.5, desc=m),
+            output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="전사 완료!")
         return transcript, out_file, f"완료 — {Path(out_file).name}"
@@ -437,6 +640,7 @@ def handle_summarize(
     recorded: str,
     uploaded: str | None,
     model_name: str,
+    cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
     if not transcript:
@@ -445,7 +649,10 @@ def handle_summarize(
     audio_stem = Path(audio).stem if audio else "output"
     try:
         progress(0.2, desc="Ollama 요약 중...")
-        summary, out_file = summarizer.summarize(transcript, audio_stem, model=model_name)
+        summary, out_file = summarizer.summarize(
+            transcript, audio_stem, model=model_name,
+            output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
+        )
         progress(1.0, desc="요약 완료!")
         return summary, out_file, f"완료 — {Path(out_file).name}"
     except Exception as exc:
@@ -456,22 +663,25 @@ def handle_pipeline(
     recorded: str,
     uploaded: str | None,
     model_name: str,
+    cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
+    out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
     try:
         progress(0.05, desc="전사 시작...")
         transcript, t_file = transcriber.transcribe(
-            audio, on_progress=lambda m: progress(0.35, desc=m)
+            audio,
+            on_progress=lambda m: progress(0.35, desc=m),
+            output_dir=out_dir,
         )
         if not transcript:
             return "", t_file, "", "", "전사 결과가 비어 있습니다."
-
         progress(0.7, desc="요약 중...")
         summary, s_file = summarizer.summarize(
-            transcript, Path(audio).stem, model=model_name
+            transcript, Path(audio).stem, model=model_name, output_dir=out_dir,
         )
         progress(1.0, desc="완료!")
         return (
@@ -544,13 +754,62 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
         # Tab 1 : 메인
         # ════════════════════════════════════════════════════════
         with gr.TabItem("  Studio  "):
+
+            # ── State ──
+            cat_data    = gr.State(cat_mod.load())
+            cat_edit_ctx = gr.State({"col": 0, "action": "", "item_id": "", "parent_id": None})
+
+            # ════════════════════════════════════════════════════════
+            # 분류 설정 패널 (전체 너비, 기본 숨김)
+            # ════════════════════════════════════════════════════════
+            with gr.Column(visible=False, elem_id="cat-panel", elem_classes="wn-card wn-cat-panel") as cat_panel:
+                with gr.Row():
+                    gr.HTML('<div class="wn-label" style="flex:1;margin:0">📁 분류 설정</div>')
+                    btn_cat_close = gr.Button("✕ 접기", elem_classes="wn-btn-secondary", min_width=70, scale=0)
+                with gr.Row(equal_height=False):
+                    with gr.Column(scale=1, elem_classes="wn-cat-col"):
+                        cat1_header = gr.HTML(_col_header(1))
+                        cat1_radio  = gr.Radio(choices=[], label="", show_label=False, elem_classes="wn-cat-radio")
+                        with gr.Row():
+                            btn_cat1_add  = gr.Button("＋ 추가", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat1_edit = gr.Button("✏ 수정", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat1_del  = gr.Button("✕ 삭제", elem_classes="wn-cat-btn-sm wn-cat-btn-del", min_width=50)
+                    with gr.Column(scale=1, elem_classes="wn-cat-col"):
+                        cat2_header = gr.HTML(_col_header(2))
+                        cat2_radio  = gr.Radio(choices=[], label="", show_label=False, elem_classes="wn-cat-radio")
+                        with gr.Row():
+                            btn_cat2_add  = gr.Button("＋ 추가", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat2_edit = gr.Button("✏ 수정", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat2_del  = gr.Button("✕ 삭제", elem_classes="wn-cat-btn-sm wn-cat-btn-del", min_width=50)
+                    with gr.Column(scale=1, elem_classes="wn-cat-col"):
+                        cat3_header = gr.HTML(_col_header(3))
+                        cat3_radio  = gr.Radio(choices=[], label="", show_label=False, elem_classes="wn-cat-radio")
+                        with gr.Row():
+                            btn_cat3_add  = gr.Button("＋ 추가", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat3_edit = gr.Button("✏ 수정", elem_classes="wn-cat-btn-sm", min_width=50)
+                            btn_cat3_del  = gr.Button("✕ 삭제", elem_classes="wn-cat-btn-sm wn-cat-btn-del", min_width=50)
+                with gr.Row(visible=False) as cat_input_row:
+                    cat_input  = gr.Textbox(show_label=True, label="항목 이름", placeholder="이름 입력", scale=4)
+                    btn_cat_ok     = gr.Button("확인", elem_classes="wn-btn-secondary", scale=1, min_width=60)
+                    btn_cat_cancel = gr.Button("취소", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=1, min_width=60)
+                cat_panel_msg = gr.HTML("")
+
             with gr.Row(equal_height=False):
 
                 # ── 왼쪽 컨트롤 패널 ──────────────────────────
                 with gr.Column(scale=1, min_width=300, elem_classes="wn-card"):
 
+                    # 분류
+                    gr.HTML('<div class="wn-label">분류</div>')
+                    with gr.Row():
+                        cat_l1 = gr.Dropdown(label="대분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                        cat_l2 = gr.Dropdown(label="중분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                        cat_l3 = gr.Dropdown(label="소분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                        btn_cat_settings = gr.Button("⚙", elem_id="btn-cat-settings", scale=1, min_width=36)
+                    cat_path_display = gr.HTML('<div class="wn-cat-path">분류 미선택</div>')
+
                     # 녹음
-                    gr.HTML('<div class="wn-label">녹음</div>')
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">녹음</div>')
                     input_device = gr.Dropdown(
                         label="입력 장치",
                         choices=[("자동 감지 (기본값)", -1)],
@@ -720,53 +979,82 @@ python app.py
                 btn_list_devices.click(list_audio_devices, outputs=device_list_output)
 
     # ── 이벤트 연결 ──────────────────────────────────────────
-    demo.load(
-        lambda: gr.update(choices=get_input_device_choices(), value=-1),
-        outputs=[input_device],
-    )
-    demo.load(get_level_html, outputs=[level_display], every=0.2)
 
+    # 페이지 로드
+    demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
+    demo.load(get_level_html, outputs=[level_display], every=0.2)
+    demo.load(init_cat_ui, inputs=[cat_data], outputs=[cat_l1, cat1_radio])
+
+    # 분류 설정 패널 열기/닫기
+    btn_cat_settings.click(cat_open_panel, outputs=[cat_panel])
+    btn_cat_close.click(cat_close_panel, outputs=[cat_panel])
+
+    # 설정 패널 라디오 cascade
+    _l1_out = [cat2_radio, cat3_radio, cat2_header, cat3_header, cat_l1, cat_l2, cat_l3, cat_path_display]
+    cat1_radio.change(on_panel_l1, inputs=[cat_data, cat1_radio], outputs=_l1_out)
+
+    _l2_out = [cat3_radio, cat3_header, cat_l2, cat_l3, cat_path_display]
+    cat2_radio.change(on_panel_l2, inputs=[cat_data, cat1_radio, cat2_radio], outputs=_l2_out)
+
+    cat3_radio.change(on_panel_l3, inputs=[cat_data, cat1_radio, cat2_radio, cat3_radio], outputs=[cat_l3, cat_path_display])
+
+    # 메인 드롭다운 cascade
+    cat_l1.change(on_l1_change, inputs=[cat_data, cat_l1], outputs=[cat_l2, cat_l3, cat_path_display])
+    cat_l2.change(on_l2_change, inputs=[cat_data, cat_l1, cat_l2], outputs=[cat_l3, cat_path_display])
+    cat_l3.change(on_l3_change, inputs=[cat_data, cat_l1, cat_l2, cat_l3], outputs=[cat_path_display])
+
+    # 추가 버튼
+    _add_out = [cat_edit_ctx, cat_input_row, cat_input, cat_panel_msg]
+    btn_cat1_add.click(lambda ctx: cat_start_add(ctx, 1, None),        inputs=[cat_edit_ctx], outputs=_add_out)
+    btn_cat2_add.click(lambda ctx, p: cat_start_add(ctx, 2, p),         inputs=[cat_edit_ctx, cat1_radio], outputs=_add_out)
+    btn_cat3_add.click(lambda ctx, p: cat_start_add(ctx, 3, p),         inputs=[cat_edit_ctx, cat2_radio], outputs=_add_out)
+
+    # 수정 버튼
+    _edit_out = [cat_edit_ctx, cat_input_row, cat_input, cat_panel_msg]
+    btn_cat1_edit.click(lambda d, c, i: cat_start_edit(d, c, 1, i), inputs=[cat_data, cat_edit_ctx, cat1_radio], outputs=_edit_out)
+    btn_cat2_edit.click(lambda d, c, i: cat_start_edit(d, c, 2, i), inputs=[cat_data, cat_edit_ctx, cat2_radio], outputs=_edit_out)
+    btn_cat3_edit.click(lambda d, c, i: cat_start_edit(d, c, 3, i), inputs=[cat_data, cat_edit_ctx, cat3_radio], outputs=_edit_out)
+
+    # 확인/취소
+    _confirm_out = [cat_data, cat_edit_ctx, cat1_radio, cat2_radio, cat3_radio, cat_input_row, cat_panel_msg]
+    btn_cat_ok.click(cat_confirm, inputs=[cat_data, cat_edit_ctx, cat_input, cat_l1, cat_l2, cat_l3], outputs=_confirm_out)
+    btn_cat_cancel.click(cat_cancel, inputs=[cat_edit_ctx], outputs=[cat_edit_ctx, cat_input_row, cat_panel_msg])
+
+    # 삭제 버튼
+    _del_out = [cat_data, cat1_radio, cat2_radio, cat3_radio, cat_panel_msg, cat_l1, cat_l2, cat_l3, cat_path_display]
+    btn_cat1_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 1, i, l1, l2, l3), inputs=[cat_data, cat1_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
+    btn_cat2_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 2, i, l1, l2, l3), inputs=[cat_data, cat2_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
+    btn_cat3_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 3, i, l1, l2, l3), inputs=[cat_data, cat3_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
+
+    # 녹음 (카테고리 파라미터 추가)
     btn_start.click(
         handle_start_recording,
-        inputs=[input_device],
+        inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3],
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     )
     btn_stop.click(
         handle_stop_recording,
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     )
-    # 녹음 완료 후 자동 전사/요약 비활성화 (수동 실행)
-    # .then(
-    #     handle_pipeline,
-    #     inputs=[recorded_file, uploaded_file, ollama_model],
-    #     outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
-    # )
-    btn_pause.click(
-        handle_pause_resume,
-        outputs=[btn_pause, record_status],
-    )
-    btn_test.click(
-        handle_mic_test,
-        inputs=[input_device],
-        outputs=[btn_test, record_status],
-    )
-    btn_refresh.click(
-        refresh_ollama_models,
-        outputs=[ollama_model, model_status],
-    )
+    btn_pause.click(handle_pause_resume, outputs=[btn_pause, record_status])
+    btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
+    btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
+
+    # 전사/요약/파이프라인 (카테고리 파라미터 추가)
+    _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
     btn_transcribe.click(
         handle_transcribe,
-        inputs=[recorded_file, uploaded_file],
+        inputs=[recorded_file, uploaded_file] + _cat_inputs,
         outputs=[transcript_output, transcript_file_path, pipeline_status],
     )
     btn_pipeline.click(
         handle_pipeline,
-        inputs=[recorded_file, uploaded_file, ollama_model],
+        inputs=[recorded_file, uploaded_file, ollama_model] + _cat_inputs,
         outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
     )
     btn_summarize.click(
         handle_summarize,
-        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model],
+        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
 

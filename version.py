@@ -1,6 +1,13 @@
-__version__ = "0.8.1"
+__version__ = "0.9.0"
 
 CHANGELOG = """
+v0.9.0 (2026-04-21)
+  - [기능] 3단계 분류 선택 (대분류/중분류/소분류) — Studio 탭 녹음 위
+  - [기능] 분류 설정 패널 (Miller Column) — 추가/수정/삭제 인라인 CRUD
+  - [기능] 분류 선택 시 sessions/L1/L2/L3/ 에 WAV+전사+요약 통합 저장
+  - [기능] 저장 경로 미리보기 표시
+  - app.py: cat_mod/storage 연동, handle 함수 4개에 output_dir 적용
+
 v0.8.1 (2026-04-20)
   - [리팩토링] categories.py 신규: 카테고리 트리 CRUD + categories.json 영속화
   - [리팩토링] storage.py 신규: 카테고리 → 파일 경로 변환 (sessions/ 기반)
