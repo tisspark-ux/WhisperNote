@@ -1,6 +1,11 @@
-__version__ = "0.9.2"
+__version__ = "0.9.3"
 
 CHANGELOG = """
+v0.9.3 (2026-04-21)
+  - [수정] 레벨 미터 깜빡임 완전 제거
+  - Gradio SSE 갱신 방식 → JavaScript setInterval + /api/level 폴링으로 교체
+  - DOM 직접 조작(textContent/style.color)으로 innerHTML 교체 없음
+
 v0.9.2 (2026-04-21)
   - [수정] 레벨 미터 0.2초 갱신 시 레이아웃 깜빡임 현상 수정
   - gr.HTML elem_id + CSS height 고정으로 Gradio 갱신 중 높이 변화 방지

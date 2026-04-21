@@ -719,20 +719,38 @@ def get_input_device_choices():
     return choices
 
 
-def get_level_html():
-    """녹음 중 오디오 레벨을 HTML 막대로 반환. demo.load every=0.2 로 주기 호출."""
+async def _api_level():
+    """레벨 미터 데이터를 JSON으로 반환하는 FastAPI 핸들러."""
     if recorder.paused:
-        color, text = "#4b5563", "⏸ 일시정지됨"
-    elif not (recorder.recording or recorder.testing):
-        color, text = "#4b5563", "마이크 대기 중"
-    else:
-        level = recorder.get_level()
-        filled = int(level / 10)
-        bar = "█" * filled + "░" * (10 - filled)
-        color = "#ef4444" if level > 80 else "#6ee7b7"
-        prefix = "테스트 " if recorder.testing else ""
-        text = f"{prefix}{bar}&nbsp;{level:.0f}%"
-    return f'<div class="wn-level-bar" style="color:{color};height:36px;display:flex;align-items:center">{text}</div>'
+        return {"status": "paused"}
+    if recorder.recording or recorder.testing:
+        return {"status": "active", "level": recorder.get_level(), "testing": bool(recorder.testing)}
+    return {"status": "idle"}
+
+
+# 레벨 미터를 JavaScript setInterval로 직접 갱신 (Gradio SSE 교체 → 깜빡임 제거)
+_LEVEL_JS = """() => {
+  setInterval(async function() {
+    try {
+      var d = await (await fetch('/api/level')).json();
+      var el = document.getElementById('wn-level-inner');
+      if (!el) return;
+      if (d.status === 'paused') {
+        el.style.color = '#4b5563';
+        el.textContent = '⏸ 일시정지됨';
+      } else if (d.status === 'active') {
+        var lv = d.level;
+        var filled = Math.round(lv / 10);
+        var bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+        el.style.color = lv > 80 ? '#ef4444' : '#6ee7b7';
+        el.innerHTML = (d.testing ? '테스트 ' : '') + bar + '&nbsp;' + Math.round(lv) + '%';
+      } else {
+        el.style.color = '#4b5563';
+        el.textContent = '마이크 대기 중';
+      }
+    } catch(e) {}
+  }, 200);
+}"""
 
 
 # ---------------------------------------------------------------------------
@@ -827,7 +845,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
 
                     level_display = gr.HTML(
-                        value='<div class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
+                        value='<div id="wn-level-inner" class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
                         elem_id="wn-level-wrap",
                     )
                     record_status = gr.Textbox(
@@ -985,7 +1003,7 @@ python app.py
 
     # 페이지 로드
     demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
-    demo.load(get_level_html, outputs=[level_display], every=0.2)
+    demo.load(fn=None, js=_LEVEL_JS)
     demo.load(init_cat_ui, inputs=[cat_data], outputs=[cat_l1, cat1_radio])
 
     # 분류 설정 패널 열기/닫기
@@ -1068,10 +1086,13 @@ python app.py
 
 if __name__ == "__main__":
     print("  서버 시작 중 (포트 7860)...", flush=True)
-    demo.launch(
+    _app, _, _ = demo.launch(
         server_name="0.0.0.0",
         server_port=7860,
         share=False,
         inbrowser=False,  # run.bat 에서 프록시 우회 플래그로 직접 실행
         show_api=False,
+        prevent_thread_lock=True,
     )
+    _app.get("/api/level")(_api_level)
+    demo.block_thread()
