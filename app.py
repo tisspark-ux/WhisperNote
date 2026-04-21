@@ -349,6 +349,7 @@ body, .gradio-container {
 }
 /* Radio 스타일 */
 .wn-cat-radio fieldset { border: none !important; padding: 0 !important; margin: 0 !important; }
+.wn-cat-radio input[type="radio"] { display: none !important; }
 .wn-cat-radio label {
     display: flex !important; align-items: center !important;
     padding: 0.25rem 0.4rem !important; border-radius: 5px !important;
