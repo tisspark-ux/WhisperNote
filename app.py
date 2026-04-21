@@ -947,12 +947,15 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         placeholder="[SPEAKER_00] [0.0s - 4.2s] 전사 결과가 여기에 표시됩니다...",
                         elem_classes="wn-result",
                     )
-                    transcript_file_path = gr.Textbox(
-                        interactive=False,
-                        show_label=False,
-                        lines=1,
-                        elem_classes="wn-filepath",
-                    )
+                    with gr.Row():
+                        transcript_file_path = gr.Textbox(
+                            interactive=False,
+                            show_label=False,
+                            lines=1,
+                            elem_classes="wn-filepath",
+                            scale=5,
+                        )
+                        btn_open_transcript_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
                     gr.HTML('<div class="wn-label" style="margin-top:1rem">요약 결과</div>')
                     summary_output = gr.Textbox(
@@ -963,12 +966,15 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         placeholder="## 핵심 내용\n- ...\n\n## 액션아이템\n- ...",
                         elem_classes="wn-result",
                     )
-                    summary_file_path = gr.Textbox(
-                        interactive=False,
-                        show_label=False,
-                        lines=1,
-                        elem_classes="wn-filepath",
-                    )
+                    with gr.Row():
+                        summary_file_path = gr.Textbox(
+                            interactive=False,
+                            show_label=False,
+                            lines=1,
+                            elem_classes="wn-filepath",
+                            scale=5,
+                        )
+                        btn_open_summary_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
         # ════════════════════════════════════════════════════════
         # Tab 2 : 설정 가이드
@@ -1084,6 +1090,8 @@ python app.py
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
+    btn_open_transcript_folder.click(handle_open_folder, inputs=[transcript_file_path])
+    btn_open_summary_folder.click(handle_open_folder, inputs=[summary_file_path])
 
     # 전사/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
