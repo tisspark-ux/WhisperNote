@@ -969,14 +969,6 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         cat_l1 = gr.Dropdown(label="대분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
                         cat_l2 = gr.Dropdown(label="중분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
                         cat_l3 = gr.Dropdown(label="소분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
-                        summary_type = gr.Dropdown(
-                            label="요약 구분",
-                            choices=["회의", "면담", "보고서 리뷰"],
-                            value="회의",
-                            interactive=True,
-                            elem_classes="wn-dropdown",
-                            scale=3,
-                        )
                         btn_cat_settings = gr.Button("⚙", elem_id="btn-cat-settings", scale=1, min_width=36)
                     cat_path_display = gr.HTML('<div class="wn-cat-path">분류 미선택</div>')
 
@@ -1079,6 +1071,13 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     )
 
                     gr.HTML('<hr class="wn-divider">')
+                    summary_type = gr.Dropdown(
+                        label="요약 구분",
+                        choices=["회의", "면담", "보고서 리뷰"],
+                        value="회의",
+                        interactive=True,
+                        elem_classes="wn-dropdown",
+                    )
                     btn_pipeline = gr.Button(
                         "전사 + 요약  →",
                         elem_id="btn-pipeline",
