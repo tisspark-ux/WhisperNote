@@ -1,6 +1,13 @@
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 
 CHANGELOG = """
+v1.0.2 (2026-04-22)
+  - [기능] WASAPI 루프백 녹음 추가 — Teams/Zoom/브라우저 등 시스템 오디오 캡처
+  - requirements.txt: soundcard 추가
+  - recorder.py: _run_wasapi_loopback(), start/start_test에 wasapi_loopback 파라미터
+  - app.py: _WASAPI_AUTO(-4) sentinel, "시스템 오디오 (WASAPI 루프백)" 드롭다운 옵션
+
+
 v1.0.1 (2026-04-22)
   - [기능] RDP 원격 마이크 자동감지 지원 — "원격 마이크 자동감지" 드롭다운 옵션 추가
   - recorder.py: _RDP_KEYWORDS, is_rdp_device_name(), find_rdp_device() 추가

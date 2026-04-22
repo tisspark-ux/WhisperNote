@@ -68,6 +68,8 @@ class AudioRecorder:
         self._base_timestamp: str = ""
         self._wav_dir_ref: Path | None = None
         self._notify_queue: deque[str] = deque()
+        self._wasapi_thread: threading.Thread | None = None
+        self._wasapi_error: str | None = None
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -79,6 +81,39 @@ class AudioRecorder:
             if dev["max_input_channels"] > 0 and is_loopback_device_name(dev["name"]):
                 return i, dev["name"]
         return None, None
+
+    def get_wasapi_speaker_name(self) -> str | None:
+        """soundcard로 기본 출력 장치 이름 반환. 실패 시 None."""
+        try:
+            import soundcard as sc
+            return sc.default_speaker().name
+        except Exception:
+            return None
+
+    def _run_wasapi_loopback(self):
+        """soundcard WASAPI 루프백 녹음/테스트 스레드."""
+        try:
+            import soundcard as sc
+        except ImportError:
+            self._wasapi_error = "soundcard 미설치. install.bat 재실행 또는 pip install soundcard"
+            return
+        CHUNK = 1024
+        try:
+            speaker = sc.default_speaker()
+            loopback_mic = sc.get_microphone(speaker.id, include_loopback=True)
+            with loopback_mic.recorder(samplerate=self._actual_samplerate, channels=CHANNELS) as rec:
+                while self.recording or self.testing:
+                    data = rec.record(numframes=CHUNK)
+                    if self.paused:
+                        continue
+                    with self.lock:
+                        self.audio_data.append(data.copy())
+                        if self.testing and len(self.audio_data) > 20:
+                            self.audio_data.pop(0)
+        except Exception as exc:
+            self._wasapi_error = str(exc)
+            self.recording = False
+            self.testing = False
 
     def find_rdp_device(self) -> tuple[int, str] | tuple[None, None]:
         """RDP 원격 오디오 입력 장치 검색. 입력 채널 있는 장치 우선 반환."""
@@ -158,12 +193,26 @@ class AudioRecorder:
     # 마이크 테스트 (저장 없이 레벨만 측정)
     # ------------------------------------------------------------------
 
-    def start_test(self, device_override=None) -> str:
+    def start_test(self, device_override=None, wasapi_loopback: bool = False) -> str:
         """마이크 테스트 시작. 오디오를 저장하지 않고 레벨만 측정."""
         if self.recording:
             return "녹음 중에는 테스트할 수 없습니다."
         if self.testing:
             return self.stop_test()
+
+        if wasapi_loopback:
+            self.audio_data = []
+            self.testing = True
+            self._wasapi_error = None
+            self._actual_samplerate = SAMPLE_RATE
+            self._wasapi_thread = threading.Thread(target=self._run_wasapi_loopback, daemon=True)
+            self._wasapi_thread.start()
+            import time as _t; _t.sleep(0.4)
+            if self._wasapi_error:
+                self.testing = False
+                return f"테스트 실패: {self._wasapi_error}"
+            speaker_name = self.get_wasapi_speaker_name() or "기본 출력"
+            return f"시스템 오디오 테스트 중 (WASAPI) — {speaker_name}"
 
         try:
             device, dev_info = self._open_input_stream(device_override)
@@ -201,6 +250,9 @@ class AudioRecorder:
             self.stream.stop()
             self.stream.close()
             self.stream = None
+        if self._wasapi_thread:
+            self._wasapi_thread.join(timeout=2)
+            self._wasapi_thread = None
         self.audio_data = []
         return "마이크 테스트 종료"
 
@@ -208,19 +260,47 @@ class AudioRecorder:
     # 녹음 제어
     # ------------------------------------------------------------------
 
-    def start(self, device_override=None, output_dir=None, chunk_minutes: int = 0) -> tuple[str | None, str]:
+    def start(self, device_override=None, output_dir=None, chunk_minutes: int = 0, wasapi_loopback: bool = False) -> tuple[str | None, str]:
         """녹음 시작. 테스트 중이면 자동 종료 후 녹음 시작."""
         if self.testing:
             self.stop_test()
         if self.recording:
             return None, "이미 녹음 중입니다."
 
+        # 공통 파일 경로 초기화
+        wav_dir = output_dir if output_dir is not None else RECORDINGS_DIR
+        wav_dir.mkdir(parents=True, exist_ok=True)
+        self._wav_dir_ref = wav_dir
+        self._base_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self._chunk_seconds = max(0, int(chunk_minutes)) * 60
+        self._part_index = 1
+        self._notify_queue.clear()
+        self.audio_data = []
+        self.paused = False
+
+        if self._chunk_seconds > 0:
+            self.current_file = wav_dir / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
+        else:
+            self.current_file = wav_dir / f"{self._base_timestamp}.wav"
+
+        if wasapi_loopback:
+            self._actual_samplerate = SAMPLE_RATE
+            self._wasapi_error = None
+            self.recording = True
+            self._wasapi_thread = threading.Thread(target=self._run_wasapi_loopback, daemon=True)
+            self._wasapi_thread.start()
+            import time as _t; _t.sleep(0.4)
+            if self._wasapi_error:
+                self.recording = False
+                return None, f"WASAPI 루프백 시작 실패: {self._wasapi_error}"
+            if self._chunk_seconds > 0:
+                self._schedule_chunk_timer()
+            speaker_name = self.get_wasapi_speaker_name() or "기본 출력"
+            return str(self.current_file), f"녹음 시작 — 시스템 오디오 WASAPI ({speaker_name})"
+
         try:
             device, dev_info = self._open_input_stream(device_override)
-            self.audio_data = []
-            self.paused = False
             self.recording = True
-            self._notify_queue.clear()
 
             def _callback(indata: np.ndarray, frames: int, time, status):
                 if self.recording and not self.paused:
@@ -236,18 +316,8 @@ class AudioRecorder:
             )
             self.stream.start()
 
-            wav_dir = output_dir if output_dir is not None else RECORDINGS_DIR
-            wav_dir.mkdir(parents=True, exist_ok=True)
-            self._wav_dir_ref = wav_dir
-            self._base_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self._chunk_seconds = max(0, int(chunk_minutes)) * 60
-            self._part_index = 1
-
             if self._chunk_seconds > 0:
-                self.current_file = wav_dir / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
                 self._schedule_chunk_timer()
-            else:
-                self.current_file = wav_dir / f"{self._base_timestamp}.wav"
 
             device_name = dev_info.get("name", "알 수 없음")
             if INPUT_SOURCE == "loopback" or is_loopback_device_name(device_name):
@@ -330,6 +400,10 @@ class AudioRecorder:
             self.stream.stop()
             self.stream.close()
             self.stream = None
+
+        if self._wasapi_thread:
+            self._wasapi_thread.join(timeout=2)
+            self._wasapi_thread = None
 
         if not self.audio_data:
             return None, "녹음된 데이터가 없습니다."
