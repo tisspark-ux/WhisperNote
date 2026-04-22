@@ -70,6 +70,10 @@ class AudioRecorder:
         self._notify_queue: deque[str] = deque()
         self._wasapi_thread: threading.Thread | None = None
         self._wasapi_error: str | None = None
+        self._mix_audio_data: list[np.ndarray] = []
+        self._mix_thread: threading.Thread | None = None
+        self._mix_error: str | None = None
+        self._is_mixed: bool = False
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -114,6 +118,28 @@ class AudioRecorder:
             self._wasapi_error = str(exc)
             self.recording = False
             self.testing = False
+
+    def _run_wasapi_mix(self):
+        """혼합 녹음 시 WASAPI 루프백 스레드 (_mix_audio_data에 저장)."""
+        try:
+            import soundcard as sc
+        except ImportError:
+            self._mix_error = "soundcard 미설치"
+            return
+        CHUNK = 1024
+        try:
+            speaker = sc.default_speaker()
+            loopback_mic = sc.get_microphone(speaker.id, include_loopback=True)
+            with loopback_mic.recorder(samplerate=self._actual_samplerate, channels=CHANNELS) as rec:
+                while self.recording:
+                    data = rec.record(numframes=CHUNK)
+                    if self.paused:
+                        continue
+                    with self.lock:
+                        self._mix_audio_data.append(data.copy())
+        except Exception as exc:
+            self._mix_error = str(exc)
+            self.recording = False
 
     def find_rdp_device(self) -> tuple[int, str] | tuple[None, None]:
         """RDP 원격 오디오 입력 장치 검색. 입력 채널 있는 장치 우선 반환."""
@@ -260,7 +286,7 @@ class AudioRecorder:
     # 녹음 제어
     # ------------------------------------------------------------------
 
-    def start(self, device_override=None, output_dir=None, chunk_minutes: int = 0, wasapi_loopback: bool = False) -> tuple[str | None, str]:
+    def start(self, device_override=None, output_dir=None, chunk_minutes: int = 0, wasapi_loopback: bool = False, mixed: bool = False) -> tuple[str | None, str]:
         """녹음 시작. 테스트 중이면 자동 종료 후 녹음 시작."""
         if self.testing:
             self.stop_test()
@@ -276,12 +302,53 @@ class AudioRecorder:
         self._part_index = 1
         self._notify_queue.clear()
         self.audio_data = []
+        self._mix_audio_data = []
+        self._is_mixed = False
         self.paused = False
 
         if self._chunk_seconds > 0:
             self.current_file = wav_dir / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
         else:
             self.current_file = wav_dir / f"{self._base_timestamp}.wav"
+
+        if mixed:
+            try:
+                device, dev_info = self._open_input_stream(device_override)
+                self._mix_error = None
+                self._is_mixed = True
+                self.recording = True
+
+                def _mix_mic_callback(indata: np.ndarray, frames: int, time, status):
+                    if self.recording and not self.paused:
+                        with self.lock:
+                            self.audio_data.append(indata.copy())
+
+                self.stream = sd.InputStream(
+                    device=device,
+                    channels=CHANNELS,
+                    samplerate=self._actual_samplerate,
+                    callback=_mix_mic_callback,
+                    dtype="float32",
+                )
+                self.stream.start()
+                self._mix_thread = threading.Thread(target=self._run_wasapi_mix, daemon=True)
+                self._mix_thread.start()
+                import time as _t; _t.sleep(0.4)
+                if self._mix_error:
+                    self.recording = False
+                    self._is_mixed = False
+                    self.stream.stop(); self.stream.close(); self.stream = None
+                    return None, f"WASAPI 혼합 시작 실패: {self._mix_error}"
+                if self._chunk_seconds > 0:
+                    self._schedule_chunk_timer()
+                device_name = dev_info.get("name", "알 수 없음")
+                speaker_name = self.get_wasapi_speaker_name() or "기본 출력"
+                return str(self.current_file), f"녹음 시작 — 혼합 ({device_name} + WASAPI {speaker_name})"
+            except Exception as exc:
+                self.recording = False
+                self._is_mixed = False
+                self.stream = None
+                return None, f"녹음 시작 실패: {exc}"
 
         if wasapi_loopback:
             self._actual_samplerate = SAMPLE_RATE
@@ -347,10 +414,21 @@ class AudioRecorder:
         if not self.recording:
             return
         with self.lock:
-            data = list(self.audio_data)
+            mic_data = list(self.audio_data)
             self.audio_data = []
-        if data:
-            audio_array = np.concatenate(data, axis=0)
+            mix_data = list(self._mix_audio_data)
+            self._mix_audio_data = []
+        if mic_data or mix_data:
+            if self._is_mixed and mix_data:
+                mic_arr = np.concatenate(mic_data, axis=0) if mic_data else None
+                mix_arr = np.concatenate(mix_data, axis=0)
+                if mic_arr is not None:
+                    min_len = min(len(mic_arr), len(mix_arr))
+                    audio_array = np.clip(mic_arr[:min_len] + mix_arr[:min_len], -1.0, 1.0)
+                else:
+                    audio_array = mix_arr
+            else:
+                audio_array = np.concatenate(mic_data, axis=0)
             sf.write(str(self.current_file), audio_array, self._actual_samplerate)
             duration_min = len(audio_array) / self._actual_samplerate / 60
             saved_name = self.current_file.name
@@ -405,11 +483,30 @@ class AudioRecorder:
             self._wasapi_thread.join(timeout=2)
             self._wasapi_thread = None
 
-        if not self.audio_data:
-            return None, "녹음된 데이터가 없습니다."
+        if self._mix_thread:
+            self._mix_thread.join(timeout=2)
+            self._mix_thread = None
 
         with self.lock:
-            audio_array = np.concatenate(self.audio_data, axis=0)
+            mic_data = list(self.audio_data)
+            mix_data = list(self._mix_audio_data)
+
+        if self._is_mixed:
+            self._is_mixed = False
+            self._mix_audio_data = []
+            if not mic_data and not mix_data:
+                return None, "녹음된 데이터가 없습니다."
+            mic_arr = np.concatenate(mic_data, axis=0) if mic_data else None
+            mix_arr = np.concatenate(mix_data, axis=0) if mix_data else None
+            if mic_arr is not None and mix_arr is not None:
+                min_len = min(len(mic_arr), len(mix_arr))
+                audio_array = np.clip(mic_arr[:min_len] + mix_arr[:min_len], -1.0, 1.0)
+            else:
+                audio_array = mic_arr if mic_arr is not None else mix_arr
+        else:
+            if not mic_data:
+                return None, "녹음된 데이터가 없습니다."
+            audio_array = np.concatenate(mic_data, axis=0)
 
         sf.write(str(self.current_file), audio_array, self._actual_samplerate)
         duration = len(audio_array) / self._actual_samplerate

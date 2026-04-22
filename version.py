@@ -1,6 +1,15 @@
-__version__ = "1.0.2"
+__version__ = "1.0.3"
 
 CHANGELOG = """
+v1.0.3 (2026-04-22)
+  - [기능] 입력 장치 드롭다운 문구 개편 — 상황별 4가지 선택지로 단순화
+  - (PC) 🎙 대면회의 / (PC) 🎧 원격회의 / (원격) 🖥 대면회의 / (원격) 🎙+🎧 원격회의
+  - [기능] (원격) 🎙+🎧 원격회의: RDP 마이크 + WASAPI 루프백 동시 녹음 및 믹싱 추가
+  - [개선] (PC) 🎧 원격회의: WASAPI 실패 시 Stereo Mix 자동 폴백
+  - recorder.py: start(mixed=True), _run_wasapi_mix(), _mix_audio_data 추가
+  - app.py: _MIX_AUTO(-5) sentinel, 드롭다운 문구 변경, handle_start_recording/handle_mic_test 분기 추가
+
+
 v1.0.2 (2026-04-22)
   - [기능] WASAPI 루프백 녹음 추가 — Teams/Zoom/브라우저 등 시스템 오디오 캡처
   - requirements.txt: soundcard 추가

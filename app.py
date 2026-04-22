@@ -132,6 +132,7 @@ import storage
 _LOOPBACK_AUTO = -2
 _REMOTE_AUTO   = -3
 _WASAPI_AUTO   = -4
+_MIX_AUTO      = -5
 
 print(f"WhisperNote v{__version__}")
 
@@ -389,19 +390,28 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_
     _fail = lambda msg: (gr.update(interactive=True), gr.update(interactive=False),
                          gr.update(interactive=False, value="⏸ 일시정지"),
                          gr.update(interactive=True, value="마이크 테스트"), msg, "")
+    out_dir = _wav_dir(cat_data_val, l1_id, l2_id, l3_id)
+    chunk_min = int(chunk_minutes or 0)
     if device_idx == _WASAPI_AUTO:
-        file_path, msg = recorder.start(
-            wasapi_loopback=True,
-            output_dir=_wav_dir(cat_data_val, l1_id, l2_id, l3_id),
-            chunk_minutes=int(chunk_minutes or 0),
-        )
+        file_path, msg = recorder.start(wasapi_loopback=True, output_dir=out_dir, chunk_minutes=chunk_min)
+        if file_path is None:
+            loopback_idx, _ = recorder.find_loopback_device()
+            if loopback_idx is not None:
+                file_path, msg = recorder.start(device_override=loopback_idx, output_dir=out_dir, chunk_minutes=chunk_min)
+    elif device_idx == _MIX_AUTO:
+        rdp_idx, _ = recorder.find_rdp_device()
+        if rdp_idx is None:
+            return _fail("원격 마이크를 찾을 수 없습니다.\n"
+                         "RDP 클라이언트(원격 데스크톱 연결) → '옵션 더 보기' → '로컬 장치 및 리소스'\n"
+                         "→ '오디오 녹음' 항목을 활성화한 뒤 재연결하세요.")
+        file_path, msg = recorder.start(device_override=rdp_idx, mixed=True, output_dir=out_dir, chunk_minutes=chunk_min)
     else:
         if device_idx == _LOOPBACK_AUTO:
             loopback_idx, _ = recorder.find_loopback_device()
             if loopback_idx is None:
                 return _fail("루프백 장치를 찾을 수 없습니다.\n"
                              "Windows 사운드 설정 → 녹음 탭 → 'Stereo Mix' 활성화 후 재시도하거나,\n"
-                             "'시스템 오디오 (WASAPI 루프백)' 옵션을 사용해보세요.")
+                             "'(PC) 🎧 원격회의' 옵션을 사용해보세요.")
             device = loopback_idx
         elif device_idx == _REMOTE_AUTO:
             rdp_idx, _ = recorder.find_rdp_device()
@@ -415,11 +425,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_
             device = None
         else:
             device = int(device_idx)
-        file_path, msg = recorder.start(
-            device_override=device,
-            output_dir=_wav_dir(cat_data_val, l1_id, l2_id, l3_id),
-            chunk_minutes=int(chunk_minutes or 0),
-        )
+        file_path, msg = recorder.start(device_override=device, output_dir=out_dir, chunk_minutes=chunk_min)
     if file_path:
         return (
             gr.update(interactive=False),                        # btn_start
@@ -477,6 +483,12 @@ def handle_mic_test(device_idx):
     else:
         if device_idx == _WASAPI_AUTO:
             msg = recorder.start_test(wasapi_loopback=True)
+        elif device_idx == _MIX_AUTO:
+            rdp_idx, _ = recorder.find_rdp_device()
+            if rdp_idx is None:
+                return gr.update(value="마이크 테스트"), ("원격 마이크를 찾을 수 없습니다.\n"
+                    "RDP 클라이언트에서 '오디오 녹음' 리다이렉션을 활성화한 뒤 재연결하세요.")
+            msg = recorder.start_test(device_override=rdp_idx)
         elif device_idx == _LOOPBACK_AUTO:
             loopback_idx, _ = recorder.find_loopback_device()
             msg = recorder.start_test(device_override=loopback_idx)
@@ -818,10 +830,10 @@ def get_input_device_choices():
     """UI 드롭다운용 (레이블, 인덱스) 선택지 목록 반환."""
     import sounddevice as sd
     choices = [
-        ("자동 감지 (기본값)", -1),
-        ("🎧 시스템 오디오 (WASAPI 루프백)", _WASAPI_AUTO),
-        ("🔊 루프백 자동감지 (Stereo Mix)", _LOOPBACK_AUTO),
-        ("🖥 원격 마이크 자동감지", _REMOTE_AUTO),
+        ("(PC) 🎙 대면회의", -1),
+        ("(PC) 🎧 원격회의", _WASAPI_AUTO),
+        ("(원격) 🖥 대면회의", _REMOTE_AUTO),
+        ("(원격) 🎙+🎧 원격회의", _MIX_AUTO),
     ]
     for i, dev in enumerate(sd.query_devices()):
         if dev["max_input_channels"] > 0:
@@ -945,7 +957,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">녹음</div>')
                     input_device = gr.Dropdown(
                         label="입력 장치",
-                        choices=[("자동 감지 (기본값)", -1)],
+                        choices=[("(PC) 🎙 대면회의", -1)],
                         value=-1,
                         interactive=True,
                         elem_classes="wn-dropdown",
