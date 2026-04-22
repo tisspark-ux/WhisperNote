@@ -383,7 +383,7 @@ body, .gradio-container {
 # 로직 함수
 # ---------------------------------------------------------------------------
 
-def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id):
+def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_minutes):
     if device_idx == _LOOPBACK_AUTO:
         loopback_idx, _ = recorder.find_loopback_device()
         if loopback_idx is None:
@@ -398,7 +398,11 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id):
         device = None
     else:
         device = int(device_idx)
-    file_path, msg = recorder.start(device_override=device, output_dir=_wav_dir(cat_data_val, l1_id, l2_id, l3_id))
+    file_path, msg = recorder.start(
+        device_override=device,
+        output_dir=_wav_dir(cat_data_val, l1_id, l2_id, l3_id),
+        chunk_minutes=int(chunk_minutes or 0),
+    )
     if file_path:
         return (
             gr.update(interactive=False),                        # btn_start
@@ -438,6 +442,14 @@ def handle_pause_resume():
     else:
         msg = recorder.pause()
         return gr.update(value="▶ 재개"), msg
+
+
+def handle_chunk_poll():
+    """2초마다 청크 알림을 확인해 record_status / recorded_file 갱신."""
+    msg = recorder.pop_chunk_message()
+    if msg:
+        return gr.update(value=msg), gr.update(value=str(recorder.current_file))
+    return gr.update(), gr.update()
 
 
 def handle_mic_test(device_idx):
@@ -858,6 +870,15 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_classes="wn-dropdown",
                     )
                     with gr.Row():
+                        chunk_minutes_input = gr.Number(
+                            label="자동 분할 (분, 0=끄기)",
+                            value=30,
+                            minimum=0,
+                            maximum=180,
+                            step=10,
+                            scale=1,
+                        )
+                    with gr.Row():
                         btn_start = gr.Button("● 녹음 시작", elem_id="btn-start")
                         btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False)
                     with gr.Row():
@@ -976,6 +997,8 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         )
                         btn_open_summary_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
+        chunk_poll_timer = gr.Timer(value=2, active=False)
+
         # ════════════════════════════════════════════════════════
         # Tab 2 : 설정 가이드
         # ════════════════════════════════════════════════════════
@@ -1076,17 +1099,18 @@ python app.py
     btn_cat2_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 2, i, l1, l2, l3), inputs=[cat_data, cat2_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
     btn_cat3_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 3, i, l1, l2, l3), inputs=[cat_data, cat3_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
 
-    # 녹음 (카테고리 파라미터 추가)
+    # 녹음 (카테고리 + 자동분할 파라미터 추가)
     btn_start.click(
         handle_start_recording,
-        inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3],
+        inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3, chunk_minutes_input],
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
-    )
+    ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
         handle_stop_recording,
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
-    )
+    ).then(lambda: gr.update(active=False), outputs=[chunk_poll_timer])
     btn_pause.click(handle_pause_resume, outputs=[btn_pause, record_status])
+    chunk_poll_timer.tick(handle_chunk_poll, outputs=[record_status, recorded_file])
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])

@@ -1,4 +1,5 @@
 import threading
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 
@@ -47,6 +48,12 @@ class AudioRecorder:
         self.lock = threading.Lock()
         self.current_file: Path | None = None
         self._actual_samplerate: int = SAMPLE_RATE
+        self._chunk_seconds: int = 0
+        self._chunk_timer: threading.Timer | None = None
+        self._part_index: int = 0
+        self._base_timestamp: str = ""
+        self._wav_dir_ref: Path | None = None
+        self._notify_queue: deque[str] = deque()
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -174,7 +181,7 @@ class AudioRecorder:
     # 녹음 제어
     # ------------------------------------------------------------------
 
-    def start(self, device_override=None, output_dir=None) -> tuple[str | None, str]:
+    def start(self, device_override=None, output_dir=None, chunk_minutes: int = 0) -> tuple[str | None, str]:
         """녹음 시작. 테스트 중이면 자동 종료 후 녹음 시작."""
         if self.testing:
             self.stop_test()
@@ -186,6 +193,7 @@ class AudioRecorder:
             self.audio_data = []
             self.paused = False
             self.recording = True
+            self._notify_queue.clear()
 
             def _callback(indata: np.ndarray, frames: int, time, status):
                 if self.recording and not self.paused:
@@ -203,8 +211,16 @@ class AudioRecorder:
 
             wav_dir = output_dir if output_dir is not None else RECORDINGS_DIR
             wav_dir.mkdir(parents=True, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            self.current_file = wav_dir / f"{timestamp}.wav"
+            self._wav_dir_ref = wav_dir
+            self._base_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            self._chunk_seconds = max(0, int(chunk_minutes)) * 60
+            self._part_index = 1
+
+            if self._chunk_seconds > 0:
+                self.current_file = wav_dir / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
+                self._schedule_chunk_timer()
+            else:
+                self.current_file = wav_dir / f"{self._base_timestamp}.wav"
 
             device_name = dev_info.get("name", "알 수 없음")
             if INPUT_SOURCE == "loopback" or is_loopback_device_name(device_name):
@@ -218,6 +234,40 @@ class AudioRecorder:
             self.paused = False
             self.stream = None
             return None, f"녹음 시작 실패: {exc}"
+
+    # ------------------------------------------------------------------
+    # 자동 분할
+    # ------------------------------------------------------------------
+
+    def _schedule_chunk_timer(self):
+        if self._chunk_seconds <= 0 or not self.recording:
+            return
+        self._chunk_timer = threading.Timer(self._chunk_seconds, self._do_chunk_split)
+        self._chunk_timer.daemon = True
+        self._chunk_timer.start()
+
+    def _do_chunk_split(self):
+        if not self.recording:
+            return
+        with self.lock:
+            data = list(self.audio_data)
+            self.audio_data = []
+        if data:
+            audio_array = np.concatenate(data, axis=0)
+            sf.write(str(self.current_file), audio_array, self._actual_samplerate)
+            duration_min = len(audio_array) / self._actual_samplerate / 60
+            saved_name = self.current_file.name
+            self._part_index += 1
+            self.current_file = self._wav_dir_ref / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
+            self._notify_queue.append(
+                f"파트 {self._part_index - 1} 저장 완료 ({duration_min:.1f}분) — "
+                f"파트 {self._part_index} 녹음 중... ({saved_name})"
+            )
+        self._schedule_chunk_timer()
+
+    def pop_chunk_message(self) -> str | None:
+        """저장된 청크 알림 메시지를 꺼낸다. 없으면 None."""
+        return self._notify_queue.popleft() if self._notify_queue else None
 
     def pause(self) -> str:
         """녹음 일시정지."""
@@ -245,6 +295,10 @@ class AudioRecorder:
         self.recording = False
         self.paused = False
 
+        if self._chunk_timer:
+            self._chunk_timer.cancel()
+            self._chunk_timer = None
+
         if self.stream:
             self.stream.stop()
             self.stream.close()
@@ -258,7 +312,8 @@ class AudioRecorder:
 
         sf.write(str(self.current_file), audio_array, self._actual_samplerate)
         duration = len(audio_array) / self._actual_samplerate
-        return str(self.current_file), f"녹음 완료: {duration:.1f}초 ({self.current_file.name})"
+        part_info = f" (파트 {self._part_index})" if self._chunk_seconds > 0 else ""
+        return str(self.current_file), f"녹음 완료{part_info}: {duration:.1f}초 ({self.current_file.name})"
 
     # ------------------------------------------------------------------
     # 장치 목록 조회

@@ -1,6 +1,13 @@
-__version__ = "0.9.7"
+__version__ = "0.9.8"
 
 CHANGELOG = """
+v0.9.8 (2026-04-22)
+  - [기능] 자동 분할 녹음 추가 (기본 30분, 0=끄기)
+  - 녹음 중 N분마다 _part01.wav, _part02.wav... 자동 저장
+  - UI: 자동 분할 분 입력란 추가, gr.Timer로 청크 저장 알림 실시간 표시
+  - config.py: RECORDING_CHUNK_MINUTES 추가
+
+
 v0.9.7 (2026-04-22)
   - [개선] 전사 품질 향상: beam_size 5→10, VAD 필터 활성화, 한국어 초기 프롬프트 추가
   - [개선] temperature=0 (결정론적 출력), condition_on_previous_text=True (문맥 연속성)
