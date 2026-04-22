@@ -1,6 +1,17 @@
-__version__ = "1.0.7"
+__version__ = "1.0.8"
 
 CHANGELOG = """
+v1.0.8 (2026-04-22)
+  - [기능] 자동 전사 — 청크 분할 및 녹음 종료 시 백그라운드 자동 전사 시작
+  - 파트별 전사파일: {base}_part01_transcript.txt 등 별도 저장
+  - 통합 전사파일: {base}_transcript.txt (파트 완료마다 누적 갱신)
+  - 파트 헤더 포함: [파트 N - HH:MM:SS ~ HH:MM:SS]
+  - 전사 진행 중 녹음 완료 시 전사 끝날 때까지 타이머 유지, 완료 후 자동 종료
+  - 결과 실시간 UI 반영 (transcript_output / transcript_file_path / pipeline_status)
+  - recorder.py: _cumulative_secs, _pending_transcriptions 추가
+  - app.py: AutoTranscriptionWorker 클래스, handle_chunk_poll 6-output 확장
+
+
 v1.0.7 (2026-04-22)
   - [개선] 요약 구분 드롭다운 위치 변경 — 분류 행 → 요약 버튼 바로 위
 

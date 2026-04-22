@@ -89,6 +89,8 @@ class AudioRecorder:
         self._paused_duration: float = 0.0
         self._part_paused_duration: float = 0.0
         self._pause_start: float | None = None
+        self._cumulative_secs: float = 0.0
+        self._pending_transcriptions: deque = deque()
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -334,6 +336,8 @@ class AudioRecorder:
         self._chunk_seconds = max(0, int(chunk_minutes)) * 60
         self._part_index = 1
         self._notify_queue.clear()
+        self._pending_transcriptions = deque()
+        self._cumulative_secs = 0.0
         self.audio_data = []
         self._mix_audio_data = []
         self._is_mixed = False
@@ -468,9 +472,14 @@ class AudioRecorder:
                     audio_array = mix_arr
             else:
                 audio_array = np.concatenate(mic_data, axis=0)
-            sf.write(str(self.current_file), audio_array, self._actual_samplerate)
-            duration_min = len(audio_array) / self._actual_samplerate / 60
-            saved_name = self.current_file.name
+            saved_path = self.current_file
+            current_part = self._part_index
+            duration_secs = len(audio_array) / self._actual_samplerate
+            start_secs = self._cumulative_secs
+            self._cumulative_secs += duration_secs
+            sf.write(str(saved_path), audio_array, self._actual_samplerate)
+            duration_min = duration_secs / 60
+            saved_name = saved_path.name
             self._part_index += 1
             self._part_start = _time_mod.monotonic()
             self._part_paused_duration = 0.0
@@ -479,11 +488,22 @@ class AudioRecorder:
                 f"파트 {self._part_index - 1} 저장 완료 ({duration_min:.1f}분) — "
                 f"파트 {self._part_index} 녹음 중... ({saved_name})"
             )
+            self._pending_transcriptions.append({
+                "wav_path": str(saved_path),
+                "part_index": current_part,
+                "start_sec": start_secs,
+                "end_sec": self._cumulative_secs,
+                "has_parts": True,
+            })
         self._schedule_chunk_timer()
 
     def pop_chunk_message(self) -> str | None:
         """저장된 청크 알림 메시지를 꺼낸다. 없으면 None."""
         return self._notify_queue.popleft() if self._notify_queue else None
+
+    def pop_pending_transcription(self) -> dict | None:
+        """전사 대기 작업을 꺼낸다. 없으면 None."""
+        return self._pending_transcriptions.popleft() if self._pending_transcriptions else None
 
     def pause(self) -> str:
         """녹음 일시정지."""
@@ -560,6 +580,15 @@ class AudioRecorder:
 
         sf.write(str(self.current_file), audio_array, self._actual_samplerate)
         duration = len(audio_array) / self._actual_samplerate
+        start_secs = self._cumulative_secs
+        self._cumulative_secs += duration
+        self._pending_transcriptions.append({
+            "wav_path": str(self.current_file),
+            "part_index": self._part_index,
+            "start_sec": start_secs,
+            "end_sec": self._cumulative_secs,
+            "has_parts": self._chunk_seconds > 0,
+        })
         part_info = f" (파트 {self._part_index})" if self._chunk_seconds > 0 else ""
         return str(self.current_file), f"녹음 완료{part_info}: {duration:.1f}초 ({self.current_file.name})"
 
