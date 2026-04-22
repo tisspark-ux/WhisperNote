@@ -756,6 +756,7 @@ def handle_summarize(
     uploaded: str | None,
     model_name: str,
     merged_stem: str,
+    summary_type_val: str,
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
@@ -772,6 +773,7 @@ def handle_summarize(
         summary, out_file = summarizer.summarize(
             text, audio_stem, model=model_name,
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
+            summary_type=summary_type_val,
         )
         progress(1.0, desc="요약 완료!")
         return summary, out_file, f"완료 — {Path(out_file).name}"
@@ -783,6 +785,7 @@ def handle_pipeline(
     recorded: str,
     uploaded: str | None,
     model_name: str,
+    summary_type_val: str,
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
@@ -802,6 +805,7 @@ def handle_pipeline(
         progress(0.7, desc="요약 중...")
         summary, s_file = summarizer.summarize(
             transcript, Path(audio).stem, model=model_name, output_dir=out_dir,
+            summary_type=summary_type_val,
         )
         progress(1.0, desc="완료!")
         return (
@@ -965,6 +969,14 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         cat_l1 = gr.Dropdown(label="대분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
                         cat_l2 = gr.Dropdown(label="중분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
                         cat_l3 = gr.Dropdown(label="소분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                        summary_type = gr.Dropdown(
+                            label="요약 구분",
+                            choices=["회의", "면담", "보고서 리뷰"],
+                            value="회의",
+                            interactive=True,
+                            elem_classes="wn-dropdown",
+                            scale=3,
+                        )
                         btn_cat_settings = gr.Button("⚙", elem_id="btn-cat-settings", scale=1, min_width=36)
                     cat_path_display = gr.HTML('<div class="wn-cat-path">분류 미선택</div>')
 
@@ -1313,13 +1325,13 @@ python app.py
     )
     btn_pipeline.click(
         handle_pipeline,
-        inputs=[recorded_file, uploaded_file, ollama_model] + _cat_inputs,
+        inputs=[recorded_file, uploaded_file, ollama_model, summary_type] + _cat_inputs,
         outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status, merged_stem_state],
     )
     btn_summarize.click(
         handle_summarize,
         inputs=[transcript_output, correction_output, transcript_source_radio,
-                recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
+                recorded_file, uploaded_file, ollama_model, merged_stem_state, summary_type] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
 

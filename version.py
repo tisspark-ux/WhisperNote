@@ -1,6 +1,14 @@
-__version__ = "1.0.5"
+__version__ = "1.0.6"
 
 CHANGELOG = """
+v1.0.6 (2026-04-22)
+  - [기능] 요약 구분 드롭다운 추가 — 회의 / 면담 / 보고서 리뷰
+  - 분류 행(소분류 옆)에 위치, 선택 시 해당 프롬프트로 요약
+  - config.py: SUMMARY_PROMPTS 딕셔너리 추가 (현재 3가지 동일 프롬프트, 추후 상세 분리)
+  - summarizer.py: summarize(summary_type) 파라미터 추가
+  - app.py: handle_summarize/handle_pipeline에 summary_type 연결
+
+
 v1.0.5 (2026-04-22)
   - [기능] 녹음 시간 실시간 표시 — 전체/파트별 경과 시간 (HH:MM:SS)
   - 일시정지 중 타이머 정지, 재개 시 이어서 증가 (주황색 표시)

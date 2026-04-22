@@ -9,6 +9,7 @@ from config import (
     OLLAMA_TIMEOUT,
     OUTPUTS_DIR,
     SUMMARY_PROMPT_TEMPLATE,
+    SUMMARY_PROMPTS,
 )
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
@@ -43,6 +44,7 @@ class Summarizer:
         audio_stem: str,
         model: str | None = None,
         output_dir=None,
+        summary_type: str = "회의",
     ) -> tuple[str, str]:
         """
         Ollama 로 전사문을 요약한다.
@@ -55,7 +57,7 @@ class Summarizer:
             저장된 TXT 파일 경로
         """
         model = model or self.model
-        prompt = SUMMARY_PROMPT_TEMPLATE.format(transcript=transcript)
+        prompt = SUMMARY_PROMPTS.get(summary_type, SUMMARY_PROMPT_TEMPLATE).format(transcript=transcript)
 
         try:
             resp = requests.post(
