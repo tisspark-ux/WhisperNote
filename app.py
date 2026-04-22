@@ -846,11 +846,13 @@ def get_input_device_choices():
 
 async def _api_level():
     """레벨 미터 데이터를 JSON으로 반환하는 FastAPI 핸들러."""
+    _no_elapsed = {"total": None, "part": None, "part_index": 1, "has_parts": False}
     if recorder.paused:
-        return {"status": "paused"}
+        return {"status": "paused", **recorder.get_elapsed()}
     if recorder.recording or recorder.testing:
-        return {"status": "active", "level": recorder.get_level(), "testing": bool(recorder.testing)}
-    return {"status": "idle"}
+        elapsed = recorder.get_elapsed() if recorder.recording else _no_elapsed
+        return {"status": "active", "level": recorder.get_level(), "testing": bool(recorder.testing), **elapsed}
+    return {"status": "idle", **_no_elapsed}
 
 
 # 레벨 미터를 JavaScript setInterval로 직접 갱신 (Gradio SSE 교체 → 깜빡임 제거)
@@ -872,6 +874,19 @@ _LEVEL_JS = """() => {
       } else {
         el.style.color = '#4b5563';
         el.textContent = '마이크 대기 중';
+      }
+      var te = document.getElementById('wn-timer-inner');
+      if (te) {
+        if (d.total) {
+          var txt = d.has_parts
+            ? '⏱ 전체 ' + d.total + '   파트' + d.part_index + ' ' + d.part
+            : '⏱ ' + d.total;
+          te.textContent = (d.status === 'paused' ? '⏸ ' : '') + txt;
+          te.style.color = d.status === 'paused' ? '#f59e0b' : '#6ee7b7';
+        } else {
+          te.textContent = '대기 중';
+          te.style.color = '#4b5563';
+        }
       }
     } catch(e) {}
   }, 200);
@@ -992,6 +1007,10 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     level_display = gr.HTML(
                         value='<div id="wn-level-inner" class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
                         elem_id="wn-level-wrap",
+                    )
+                    timer_display = gr.HTML(
+                        value='<div id="wn-timer-inner" style="color:#4b5563;font-size:1.1rem;font-weight:600;letter-spacing:0.05em;height:28px;display:flex;align-items:center">대기 중</div>',
+                        elem_id="wn-timer-wrap",
                     )
                     record_status = gr.Textbox(
                         value="대기 중",

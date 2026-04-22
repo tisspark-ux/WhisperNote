@@ -1,4 +1,5 @@
 import threading
+import time as _time_mod
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -52,6 +53,13 @@ def is_rdp_device_name(name: str) -> bool:
     return any(kw in name_lower for kw in _RDP_KEYWORDS)
 
 
+def _fmt_time(secs: float) -> str:
+    s = max(0, int(secs))
+    h, rem = divmod(s, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
 class AudioRecorder:
     def __init__(self):
         self.recording = False
@@ -76,6 +84,11 @@ class AudioRecorder:
         self._is_mixed: bool = False
         self.mic_gain: float = 1.0
         self.system_gain: float = 1.0
+        self._recording_start: float | None = None
+        self._part_start: float | None = None
+        self._paused_duration: float = 0.0
+        self._part_paused_duration: float = 0.0
+        self._pause_start: float | None = None
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -220,6 +233,21 @@ class AudioRecorder:
         rms = float(np.sqrt(np.mean(chunk ** 2)))
         return min(100.0, rms * 1200)
 
+    def get_elapsed(self) -> dict:
+        """녹음 경과 시간 반환. 일시정지 시간 제외."""
+        if not self.recording or self._recording_start is None:
+            return {"total": None, "part": None, "part_index": 1, "has_parts": False}
+        now = _time_mod.monotonic()
+        pause_adj = (now - self._pause_start) if (self.paused and self._pause_start) else 0.0
+        total = now - self._recording_start - self._paused_duration - pause_adj
+        part  = now - self._part_start - self._part_paused_duration - pause_adj
+        return {
+            "total": _fmt_time(total),
+            "part":  _fmt_time(part),
+            "part_index": self._part_index,
+            "has_parts": self._chunk_seconds > 0,
+        }
+
     # ------------------------------------------------------------------
     # 마이크 테스트 (저장 없이 레벨만 측정)
     # ------------------------------------------------------------------
@@ -310,6 +338,11 @@ class AudioRecorder:
         self._mix_audio_data = []
         self._is_mixed = False
         self.paused = False
+        self._recording_start = _time_mod.monotonic()
+        self._part_start      = _time_mod.monotonic()
+        self._paused_duration = 0.0
+        self._part_paused_duration = 0.0
+        self._pause_start = None
 
         if self._chunk_seconds > 0:
             self.current_file = wav_dir / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
@@ -439,6 +472,8 @@ class AudioRecorder:
             duration_min = len(audio_array) / self._actual_samplerate / 60
             saved_name = self.current_file.name
             self._part_index += 1
+            self._part_start = _time_mod.monotonic()
+            self._part_paused_duration = 0.0
             self.current_file = self._wav_dir_ref / f"{self._base_timestamp}_part{self._part_index:02d}.wav"
             self._notify_queue.append(
                 f"파트 {self._part_index - 1} 저장 완료 ({duration_min:.1f}분) — "
@@ -457,6 +492,7 @@ class AudioRecorder:
         if self.paused:
             return "이미 일시정지 중입니다."
         self.paused = True
+        self._pause_start = _time_mod.monotonic()
         return "일시정지됨 — 재개하려면 ▶ 재개 버튼을 누르세요"
 
     def resume(self) -> str:
@@ -466,6 +502,11 @@ class AudioRecorder:
         if not self.paused:
             return "일시정지 상태가 아닙니다."
         self.paused = False
+        if self._pause_start:
+            elapsed = _time_mod.monotonic() - self._pause_start
+            self._paused_duration += elapsed
+            self._part_paused_duration += elapsed
+            self._pause_start = None
         return "녹음 재개됨"
 
     def stop(self) -> tuple[str | None, str]:
@@ -475,6 +516,9 @@ class AudioRecorder:
 
         self.recording = False
         self.paused = False
+        self._recording_start = None
+        self._part_start = None
+        self._pause_start = None
 
         if self._chunk_timer:
             self._chunk_timer.cancel()
