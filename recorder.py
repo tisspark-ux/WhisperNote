@@ -208,9 +208,12 @@ class AudioRecorder:
         if not (self.recording or self.testing):
             return 0.0
         with self.lock:
-            if not self.audio_data:
+            if self._is_mixed:
+                recent = self.audio_data[-8:] + self._mix_audio_data[-8:]
+            else:
+                recent = self.audio_data[-8:]
+            if not recent:
                 return 0.0
-            recent = self.audio_data[-8:]
         chunk = np.concatenate(recent)
         rms = float(np.sqrt(np.mean(chunk ** 2)))
         return min(100.0, rms * 1200)
