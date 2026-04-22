@@ -1,6 +1,13 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 CHANGELOG = """
+v1.0.1 (2026-04-22)
+  - [기능] RDP 원격 마이크 자동감지 지원 — "원격 마이크 자동감지" 드롭다운 옵션 추가
+  - recorder.py: _RDP_KEYWORDS, is_rdp_device_name(), find_rdp_device() 추가
+  - recorder.py: list_devices() 개선 — 호스트 API 이름, [원격] 태그, ch:0 경고 표시
+  - app.py: _REMOTE_AUTO(-3) sentinel, handle_start_recording/handle_mic_test RDP 분기 추가
+
+
 v1.0.0 (2026-04-22)
   - [기능] 전사 파일 다중 선택 병합 — 여러 파트 전사문을 이름순(시간순) 병합 후 교정/요약
   - app.py: handle_load_transcripts() 추가, 전사 파일 병합 UI 섹션 추가
