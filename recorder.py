@@ -74,6 +74,8 @@ class AudioRecorder:
         self._mix_thread: threading.Thread | None = None
         self._mix_error: str | None = None
         self._is_mixed: bool = False
+        self.mic_gain: float = 1.0
+        self.system_gain: float = 1.0
 
     # ------------------------------------------------------------------
     # 장치 관련
@@ -111,7 +113,7 @@ class AudioRecorder:
                     if self.paused:
                         continue
                     with self.lock:
-                        self.audio_data.append(data.copy())
+                        self.audio_data.append(np.clip(data * self.system_gain, -1.0, 1.0))
                         if self.testing and len(self.audio_data) > 20:
                             self.audio_data.pop(0)
         except Exception as exc:
@@ -136,7 +138,7 @@ class AudioRecorder:
                     if self.paused:
                         continue
                     with self.lock:
-                        self._mix_audio_data.append(data.copy())
+                        self._mix_audio_data.append(np.clip(data * self.system_gain, -1.0, 1.0))
         except Exception as exc:
             self._mix_error = str(exc)
             self.recording = False
@@ -251,7 +253,7 @@ class AudioRecorder:
             def _callback(indata: np.ndarray, frames: int, time, status):
                 if self.testing:
                     with self.lock:
-                        self.audio_data.append(indata.copy())
+                        self.audio_data.append(np.clip(indata * self.mic_gain, -1.0, 1.0))
                         if len(self.audio_data) > 20:
                             self.audio_data.pop(0)
 
@@ -324,7 +326,7 @@ class AudioRecorder:
                 def _mix_mic_callback(indata: np.ndarray, frames: int, time, status):
                     if self.recording and not self.paused:
                         with self.lock:
-                            self.audio_data.append(indata.copy())
+                            self.audio_data.append(np.clip(indata * self.mic_gain, -1.0, 1.0))
 
                 self.stream = sd.InputStream(
                     device=device,
@@ -376,7 +378,7 @@ class AudioRecorder:
             def _callback(indata: np.ndarray, frames: int, time, status):
                 if self.recording and not self.paused:
                     with self.lock:
-                        self.audio_data.append(indata.copy())
+                        self.audio_data.append(np.clip(indata * self.mic_gain, -1.0, 1.0))
 
             self.stream = sd.InputStream(
                 device=device,

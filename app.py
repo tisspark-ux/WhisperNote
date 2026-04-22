@@ -963,6 +963,17 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_classes="wn-dropdown",
                     )
                     with gr.Row():
+                        mic_gain_slider = gr.Slider(
+                            label="🎙 마이크 볼륨",
+                            minimum=0.5, maximum=4.0, value=1.0, step=0.1,
+                            visible=True, scale=1,
+                        )
+                        system_gain_slider = gr.Slider(
+                            label="🎧 시스템 오디오 볼륨",
+                            minimum=0.5, maximum=4.0, value=1.0, step=0.1,
+                            visible=False, scale=1,
+                        )
+                    with gr.Row():
                         chunk_minutes_input = gr.Number(
                             label="자동 분할 (분, 0=끄기)",
                             value=30,
@@ -1228,6 +1239,22 @@ python app.py
     btn_cat1_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 1, i, l1, l2, l3), inputs=[cat_data, cat1_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
     btn_cat2_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 2, i, l1, l2, l3), inputs=[cat_data, cat2_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
     btn_cat3_del.click(lambda d, i, l1, l2, l3: cat_delete(d, 3, i, l1, l2, l3), inputs=[cat_data, cat3_radio, cat_l1, cat_l2, cat_l3], outputs=_del_out)
+
+    # 입력 장치 변경 → 슬라이더 표시/숨김
+    def _update_gain_sliders(device_idx):
+        mic_vis = device_idx not in (_WASAPI_AUTO,)
+        sys_vis = device_idx in (_WASAPI_AUTO, _MIX_AUTO)
+        return gr.update(visible=mic_vis), gr.update(visible=sys_vis)
+
+    input_device.change(
+        _update_gain_sliders,
+        inputs=[input_device],
+        outputs=[mic_gain_slider, system_gain_slider],
+    )
+
+    # 슬라이더 실시간 게인 적용
+    mic_gain_slider.change(lambda v: setattr(recorder, "mic_gain", v), inputs=[mic_gain_slider])
+    system_gain_slider.change(lambda v: setattr(recorder, "system_gain", v), inputs=[system_gain_slider])
 
     # 녹음 (카테고리 + 자동분할 파라미터 추가)
     btn_start.click(
