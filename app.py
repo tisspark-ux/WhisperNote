@@ -123,13 +123,14 @@ except Exception:
 print("  [3/3] AI 라이브러리 로딩 중 (최초 실행 시 30초 이상 소요)...", flush=True)
 from version import __version__
 from config import OLLAMA_MODEL
-from recorder import AudioRecorder, is_loopback_device_name
+from recorder import AudioRecorder, is_loopback_device_name, is_rdp_device_name
 from summarizer import Summarizer
 from transcriber import Transcriber
 import categories as cat_mod
 import storage
 
 _LOOPBACK_AUTO = -2
+_REMOTE_AUTO   = -3
 
 print(f"WhisperNote v{__version__}")
 
@@ -384,16 +385,24 @@ body, .gradio-container {
 # ---------------------------------------------------------------------------
 
 def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_minutes):
+    _fail = lambda msg: (gr.update(interactive=True), gr.update(interactive=False),
+                         gr.update(interactive=False, value="⏸ 일시정지"),
+                         gr.update(interactive=True, value="마이크 테스트"), msg, "")
     if device_idx == _LOOPBACK_AUTO:
         loopback_idx, _ = recorder.find_loopback_device()
         if loopback_idx is None:
-            msg = ("루프백 장치를 찾을 수 없습니다.\n"
-                   "Windows 사운드 설정 → 녹음 탭 → 'Stereo Mix' 활성화 후 재시도하거나,\n"
-                   "장치 목록에서 직접 루프백 장치를 선택하세요.")
-            return (gr.update(interactive=True), gr.update(interactive=False),
-                    gr.update(interactive=False, value="⏸ 일시정지"),
-                    gr.update(interactive=True, value="마이크 테스트"), msg, "")
+            return _fail("루프백 장치를 찾을 수 없습니다.\n"
+                         "Windows 사운드 설정 → 녹음 탭 → 'Stereo Mix' 활성화 후 재시도하거나,\n"
+                         "장치 목록에서 직접 루프백 장치를 선택하세요.")
         device = loopback_idx
+    elif device_idx == _REMOTE_AUTO:
+        rdp_idx, _ = recorder.find_rdp_device()
+        if rdp_idx is None:
+            return _fail("원격 마이크를 찾을 수 없습니다.\n"
+                         "RDP 클라이언트(원격 데스크톱 연결) → '옵션 더 보기' → '로컬 장치 및 리소스'\n"
+                         "→ '오디오 녹음' 항목을 활성화한 뒤 재연결하세요.\n"
+                         "또는 설정 탭에서 [장치 목록 조회]로 [원격] 장치를 직접 선택하세요.")
+        device = rdp_idx
     elif device_idx is None or device_idx == -1:
         device = None
     else:
@@ -461,6 +470,12 @@ def handle_mic_test(device_idx):
         if device_idx == _LOOPBACK_AUTO:
             loopback_idx, _ = recorder.find_loopback_device()
             device = loopback_idx
+        elif device_idx == _REMOTE_AUTO:
+            rdp_idx, _ = recorder.find_rdp_device()
+            if rdp_idx is None:
+                return gr.update(value="마이크 테스트"), ("원격 마이크를 찾을 수 없습니다.\n"
+                    "RDP 클라이언트에서 '오디오 녹음' 리다이렉션을 활성화한 뒤 재연결하세요.")
+            device = rdp_idx
         elif device_idx is None or device_idx == -1:
             device = None
         else:
@@ -657,7 +672,7 @@ def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
 def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, l2_id, l3_id, progress=gr.Progress()):
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
-        return "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
+        return "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
     try:
         progress(0.1, desc="전사 시작...")
         transcript, out_file = transcriber.transcribe(
@@ -666,9 +681,9 @@ def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, 
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="전사 완료!")
-        return transcript, out_file, f"완료 — {Path(out_file).name}"
+        return transcript, out_file, "", f"완료 — {Path(out_file).name}"
     except Exception as exc:
-        return "", "", f"전사 실패: {exc}"
+        return "", "", "", f"전사 실패: {exc}"
 
 
 def handle_correct(
@@ -676,13 +691,17 @@ def handle_correct(
     recorded: str,
     uploaded: str | None,
     model_name: str,
+    merged_stem: str,
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
     if not transcript:
         return "", "", "먼저 전사를 실행하세요."
-    audio = _resolve_audio(recorded, uploaded)
-    audio_stem = Path(audio).stem if audio else "output"
+    if merged_stem:
+        audio_stem = merged_stem
+    else:
+        audio = _resolve_audio(recorded, uploaded)
+        audio_stem = Path(audio).stem if audio else "output"
     try:
         progress(0.2, desc="교정 중...")
         corrected, out_file = summarizer.correct_transcript(
@@ -695,6 +714,19 @@ def handle_correct(
         return "", "", f"교정 실패: {exc}"
 
 
+def handle_load_transcripts(files):
+    if not files:
+        return "", "", "전사 파일을 선택하세요."
+    sorted_files = sorted(files, key=lambda f: Path(f).name)
+    parts = []
+    for f in sorted_files:
+        parts.append(Path(f).read_text(encoding="utf-8"))
+    merged = "\n\n".join(parts)
+    first_stem = Path(sorted_files[0]).stem.replace("_transcript", "")
+    merged_stem = f"{first_stem}_merged"
+    return merged, merged_stem, f"전사 파일 {len(sorted_files)}개 병합 완료"
+
+
 def handle_summarize(
     transcript: str,
     correction: str,
@@ -702,14 +734,18 @@ def handle_summarize(
     recorded: str,
     uploaded: str | None,
     model_name: str,
+    merged_stem: str,
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
     text = correction if transcript_source == "교정본" and correction else transcript
     if not text:
         return "", "", "먼저 전사를 실행하세요."
-    audio = _resolve_audio(recorded, uploaded)
-    audio_stem = Path(audio).stem if audio else "output"
+    if merged_stem:
+        audio_stem = merged_stem
+    else:
+        audio = _resolve_audio(recorded, uploaded)
+        audio_stem = Path(audio).stem if audio else "output"
     try:
         progress(0.2, desc="Ollama 요약 중...")
         summary, out_file = summarizer.summarize(
@@ -731,7 +767,7 @@ def handle_pipeline(
 ):
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
-        return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
+        return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", ""
     out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
     try:
         progress(0.05, desc="전사 시작...")
@@ -751,9 +787,10 @@ def handle_pipeline(
             transcript, t_file,
             summary,   s_file,
             f"완료 — {Path(t_file).name} / {Path(s_file).name}",
+            "",
         )
     except Exception as exc:
-        return "", "", "", "", f"실패: {exc}"
+        return "", "", "", "", f"실패: {exc}", ""
 
 
 def refresh_ollama_models():
@@ -771,10 +808,16 @@ def list_audio_devices():
 def get_input_device_choices():
     """UI 드롭다운용 (레이블, 인덱스) 선택지 목록 반환."""
     import sounddevice as sd
-    choices = [("자동 감지 (기본값)", -1), ("🔊 루프백 자동감지", _LOOPBACK_AUTO)]
+    choices = [
+        ("자동 감지 (기본값)", -1),
+        ("🔊 루프백 자동감지", _LOOPBACK_AUTO),
+        ("🖥 원격 마이크 자동감지", _REMOTE_AUTO),
+    ]
     for i, dev in enumerate(sd.query_devices()):
         if dev["max_input_channels"] > 0:
-            tag = " [루프백]" if is_loopback_device_name(dev["name"]) else ""
+            tag = " [루프백]" if is_loopback_device_name(dev["name"]) else (
+                " [원격]" if is_rdp_device_name(dev["name"]) else ""
+            )
             choices.append((f"[{i}] {dev['name']}{tag}", i))
     return choices
 
@@ -838,6 +881,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
             # ── State ──
             cat_data    = gr.State(cat_mod.load())
             cat_edit_ctx = gr.State({"col": 0, "action": "", "item_id": "", "parent_id": None})
+            merged_stem_state = gr.State("")
 
             # ════════════════════════════════════════════════════════
             # 분류 설정 패널 (전체 너비, 기본 숨김)
@@ -940,6 +984,15 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         type="filepath",
                         elem_classes="wn-upload",
                     )
+
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">전사 파일 병합</div>')
+                    transcript_files = gr.File(
+                        label="전사 파일 선택 (여러 개 가능, 이름순 병합)",
+                        file_count="multiple",
+                        file_types=[".txt"],
+                        elem_classes="wn-upload",
+                    )
+                    btn_load_transcripts = gr.Button("병합하여 불러오기", elem_classes="wn-btn-secondary")
 
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">Ollama 모델</div>')
                     with gr.Row():
@@ -1175,25 +1228,30 @@ python app.py
 
     # 전사/교정/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
+    btn_load_transcripts.click(
+        handle_load_transcripts,
+        inputs=[transcript_files],
+        outputs=[transcript_output, merged_stem_state, pipeline_status],
+    )
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
-        outputs=[transcript_output, transcript_file_path, pipeline_status],
+        outputs=[transcript_output, transcript_file_path, merged_stem_state, pipeline_status],
     )
     btn_correct.click(
         handle_correct,
-        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model] + _cat_inputs,
+        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
         outputs=[correction_output, corrected_file_path, pipeline_status],
     )
     btn_pipeline.click(
         handle_pipeline,
         inputs=[recorded_file, uploaded_file, ollama_model] + _cat_inputs,
-        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status],
+        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status, merged_stem_state],
     )
     btn_summarize.click(
         handle_summarize,
         inputs=[transcript_output, correction_output, transcript_source_radio,
-                recorded_file, uploaded_file, ollama_model] + _cat_inputs,
+                recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
 

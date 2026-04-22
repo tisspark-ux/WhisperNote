@@ -31,11 +31,25 @@ _LOOPBACK_KEYWORDS = (
     "mix output",
 )
 
+_RDP_KEYWORDS = (
+    "remote audio",
+    "원격 오디오",
+    "rdp",
+    "원격 마이크",
+    "원격 입력",
+)
+
 
 def is_loopback_device_name(name: str) -> bool:
     """장치 이름이 루프백/시스템 오디오 장치인지 키워드로 판별."""
     name_lower = name.lower()
     return any(kw in name_lower for kw in _LOOPBACK_KEYWORDS)
+
+
+def is_rdp_device_name(name: str) -> bool:
+    """장치 이름이 RDP 원격 오디오 장치인지 키워드로 판별."""
+    name_lower = name.lower()
+    return any(kw in name_lower for kw in _RDP_KEYWORDS)
 
 
 class AudioRecorder:
@@ -65,6 +79,19 @@ class AudioRecorder:
             if dev["max_input_channels"] > 0 and is_loopback_device_name(dev["name"]):
                 return i, dev["name"]
         return None, None
+
+    def find_rdp_device(self) -> tuple[int, str] | tuple[None, None]:
+        """RDP 원격 오디오 입력 장치 검색. 입력 채널 있는 장치 우선 반환."""
+        candidates = []
+        for i, dev in enumerate(sd.query_devices()):
+            if is_rdp_device_name(dev["name"]):
+                candidates.append((i, dev["name"], dev["max_input_channels"]))
+        if not candidates:
+            return None, None
+        usable = [(i, name) for i, name, ch in candidates if ch > 0]
+        if usable:
+            return usable[0]
+        return candidates[0][0], candidates[0][1]
 
     def _find_loopback_device(self) -> int | None:
         idx, _ = self.find_loopback_device()
@@ -320,11 +347,18 @@ class AudioRecorder:
     # ------------------------------------------------------------------
 
     def list_devices(self) -> str:
-        """입력 가능한 오디오 장치 목록을 문자열로 반환."""
-        devices = sd.query_devices()
+        """입력 가능한 오디오 장치 목록을 문자열로 반환 (호스트 API 정보 포함)."""
+        apis = {i: api["name"] for i, api in enumerate(sd.query_hostapis())}
         lines = []
-        for i, dev in enumerate(devices):
-            if dev["max_input_channels"] > 0:
-                tag = " [루프백]" if is_loopback_device_name(dev["name"]) else ""
-                lines.append(f"[{i}] {dev['name']}{tag} (SR: {int(dev['default_samplerate'])}Hz)")
+        for i, dev in enumerate(sd.query_devices()):
+            ch = dev["max_input_channels"]
+            name = dev["name"]
+            is_rdp = is_rdp_device_name(name)
+            is_lb = is_loopback_device_name(name)
+            if ch <= 0 and not is_rdp and not is_lb:
+                continue
+            api_name = apis.get(dev.get("hostapi", 0), "?")
+            tag = " [원격]" if is_rdp else (" [루프백]" if is_lb else "")
+            ch_str = f"ch:{ch}" if ch > 0 else "ch:0 ⚠"
+            lines.append(f"[{i}] {name}{tag} ({api_name}, {ch_str}, SR:{int(dev['default_samplerate'])}Hz)")
         return "\n".join(lines) if lines else "입력 장치 없음"
