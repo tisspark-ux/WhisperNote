@@ -7,7 +7,7 @@ tasklist /fi "imagename eq ollama.exe" 2>nul | find /i "ollama.exe" >nul
 if errorlevel 1 (
     echo Starting Ollama...
     start /min "" ollama serve
-    timeout /t 2 >nul
+    timeout /t 2 /nobreak >nul
 )
 
 echo Starting WhisperNote...
