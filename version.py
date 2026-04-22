@@ -1,6 +1,14 @@
-__version__ = "0.9.9"
+__version__ = "1.0.0"
 
 CHANGELOG = """
+v1.0.0 (2026-04-22)
+  - [기능] 전사 파일 다중 선택 병합 — 여러 파트 전사문을 이름순(시간순) 병합 후 교정/요약
+  - app.py: handle_load_transcripts() 추가, 전사 파일 병합 UI 섹션 추가
+  - app.py: merged_stem_state(gr.State) 추가 — 병합 파일명 기반으로 교정/요약 파일 저장
+  - app.py: handle_correct/handle_summarize에 merged_stem 파라미터 추가
+  - app.py: handle_transcribe/handle_pipeline 실행 시 merged_stem_state 초기화
+
+
 v0.9.9 (2026-04-22)
   - [기능] 전사 교정 기능 추가 - LLM이 구어체/추임새 교정, 별도 파일 저장
   - [기능] 요약 시 원본/교정본 선택 라디오 추가
