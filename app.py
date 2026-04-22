@@ -671,7 +671,7 @@ def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, 
         return "", "", f"전사 실패: {exc}"
 
 
-def handle_summarize(
+def handle_correct(
     transcript: str,
     recorded: str,
     uploaded: str | None,
@@ -684,9 +684,36 @@ def handle_summarize(
     audio = _resolve_audio(recorded, uploaded)
     audio_stem = Path(audio).stem if audio else "output"
     try:
+        progress(0.2, desc="교정 중...")
+        corrected, out_file = summarizer.correct_transcript(
+            transcript, audio_stem, model=model_name,
+            output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
+        )
+        progress(1.0, desc="교정 완료!")
+        return corrected, out_file, f"완료 — {Path(out_file).name}"
+    except Exception as exc:
+        return "", "", f"교정 실패: {exc}"
+
+
+def handle_summarize(
+    transcript: str,
+    correction: str,
+    transcript_source: str,
+    recorded: str,
+    uploaded: str | None,
+    model_name: str,
+    cat_data_val, l1_id, l2_id, l3_id,
+    progress=gr.Progress(),
+):
+    text = correction if transcript_source == "교정본" and correction else transcript
+    if not text:
+        return "", "", "먼저 전사를 실행하세요."
+    audio = _resolve_audio(recorded, uploaded)
+    audio_stem = Path(audio).stem if audio else "output"
+    try:
         progress(0.2, desc="Ollama 요약 중...")
         summary, out_file = summarizer.summarize(
-            transcript, audio_stem, model=model_name,
+            text, audio_stem, model=model_name,
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="요약 완료!")
@@ -943,6 +970,9 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_transcribe = gr.Button(
                             "전사만", elem_classes="wn-btn-secondary", scale=1
                         )
+                        btn_correct = gr.Button(
+                            "교정 시작", elem_classes="wn-btn-secondary", scale=1
+                        )
                         btn_summarize = gr.Button(
                             "요약만", elem_classes="wn-btn-secondary", scale=1
                         )
@@ -978,7 +1008,32 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         )
                         btn_open_transcript_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
-                    gr.HTML('<div class="wn-label" style="margin-top:1rem">요약 결과</div>')
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">교정 결과</div>')
+                    correction_output = gr.Textbox(
+                        lines=13,
+                        interactive=False,
+                        show_label=False,
+                        show_copy_button=True,
+                        placeholder="교정 시작 버튼을 누르면 교정된 전사문이 여기에 표시됩니다.",
+                        elem_classes="wn-result",
+                    )
+                    with gr.Row():
+                        corrected_file_path = gr.Textbox(
+                            interactive=False,
+                            show_label=False,
+                            lines=1,
+                            elem_classes="wn-filepath",
+                            scale=5,
+                        )
+                        btn_open_corrected_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
+
+                    gr.HTML('<hr class="wn-divider"><div class="wn-label">요약 결과</div>')
+                    transcript_source_radio = gr.Radio(
+                        choices=["원본", "교정본"],
+                        value="원본",
+                        label="요약 대상 전사문",
+                        interactive=True,
+                    )
                     summary_output = gr.Textbox(
                         lines=13,
                         interactive=False,
@@ -1115,14 +1170,20 @@ python app.py
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
     btn_open_transcript_folder.click(handle_open_folder, inputs=[transcript_file_path])
+    btn_open_corrected_folder.click(handle_open_folder, inputs=[corrected_file_path])
     btn_open_summary_folder.click(handle_open_folder, inputs=[summary_file_path])
 
-    # 전사/요약/파이프라인 (카테고리 파라미터 추가)
+    # 전사/교정/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
         outputs=[transcript_output, transcript_file_path, pipeline_status],
+    )
+    btn_correct.click(
+        handle_correct,
+        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model] + _cat_inputs,
+        outputs=[correction_output, corrected_file_path, pipeline_status],
     )
     btn_pipeline.click(
         handle_pipeline,
@@ -1131,7 +1192,8 @@ python app.py
     )
     btn_summarize.click(
         handle_summarize,
-        inputs=[transcript_output, recorded_file, uploaded_file, ollama_model] + _cat_inputs,
+        inputs=[transcript_output, correction_output, transcript_source_radio,
+                recorded_file, uploaded_file, ollama_model] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
 

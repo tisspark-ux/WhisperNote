@@ -1,6 +1,14 @@
-__version__ = "0.9.8"
+__version__ = "0.9.9"
 
 CHANGELOG = """
+v0.9.9 (2026-04-22)
+  - [기능] 전사 교정 기능 추가 - LLM이 구어체/추임새 교정, 별도 파일 저장
+  - [기능] 요약 시 원본/교정본 선택 라디오 추가
+  - config.py: CORRECTION_PROMPT_TEMPLATE 추가
+  - summarizer.py: correct_transcript() 메서드 추가
+  - app.py: 교정 결과 UI, btn_correct, transcript_source_radio 추가
+
+
 v0.9.8 (2026-04-22)
   - [기능] 자동 분할 녹음 추가 (기본 30분, 0=끄기)
   - 녹음 중 N분마다 _part01.wav, _part02.wav... 자동 저장
