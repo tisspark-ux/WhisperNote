@@ -13,6 +13,7 @@ pillow>=10.0.0
 # Audio recording / processing
 sounddevice
 soundfile
+soundcard
 numpy
 scipy
 
