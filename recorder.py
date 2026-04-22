@@ -338,6 +338,7 @@ class AudioRecorder:
                     self.recording = False
                     self._is_mixed = False
                     self.stream.stop(); self.stream.close(); self.stream = None
+                    self._mix_thread.join(timeout=2); self._mix_thread = None
                     return None, f"WASAPI 혼합 시작 실패: {self._mix_error}"
                 if self._chunk_seconds > 0:
                     self._schedule_chunk_timer()
