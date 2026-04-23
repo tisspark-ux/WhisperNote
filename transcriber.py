@@ -76,6 +76,19 @@ class Transcriber:
 
     def _load_model(self):
         if self._model is None:
+            gpu_info = ""
+            if self.device == "cuda":
+                try:
+                    gpu_info = f" [{torch.cuda.get_device_name(0)}]"
+                except Exception:
+                    pass
+            else:
+                gpu_info = " (GPU 없음 → CPU 사용, 속도 매우 느림)"
+
+            print(f"[전사] 모델 로딩 중: {WHISPER_MODEL} / {self.device}{gpu_info} / {self.compute_type}", flush=True)
+            print(f"[전사] 모델 캐시 위치: {Path(__file__).parent / 'models'}", flush=True)
+            print("[전사] 최초 실행 시 HuggingFace에서 모델 다운로드 (~1.6GB) — 시간이 걸릴 수 있습니다", flush=True)
+
             # faster_whisper 직접 사용 — whisperx.load_model()은 pyannote VAD 필요
             self._model = WhisperModel(
                 WHISPER_MODEL,
@@ -83,6 +96,7 @@ class Transcriber:
                 compute_type=self.compute_type,
                 download_root=str(Path(__file__).parent / "models"),
             )
+            print(f"[전사] 모델 로딩 완료", flush=True)
 
     # ------------------------------------------------------------------
     # 전사
@@ -106,15 +120,18 @@ class Transcriber:
             저장된 TXT 파일 경로
         """
         def _progress(msg: str):
+            print(f"[전사] {msg}", flush=True)
             if on_progress:
                 on_progress(msg)
+
+        print(f"[전사] 시작: {Path(audio_path).name}", flush=True)
 
         _progress("Whisper 모델 로딩 중...")
         self._load_model()
 
-        _progress("오디오 전사 중...")
+        _progress("오디오 전사 중... (파일 크기/CPU 성능에 따라 수 분~수십 분 소요)")
         # faster_whisper: 파일 경로 직접 전달, generator 반환
-        fw_segments, _ = self._model.transcribe(
+        fw_segments, fw_info = self._model.transcribe(
             audio_path,
             language=WHISPER_LANGUAGE,
             beam_size=WHISPER_BEAM_SIZE,
@@ -126,10 +143,15 @@ class Transcriber:
             compression_ratio_threshold=2.4,
             log_prob_threshold=-1.0,
         )
-        segments = [
-            {"start": s.start, "end": s.end, "text": s.text}
-            for s in fw_segments
-        ]
+        print(f"[전사] 오디오 길이: {fw_info.duration:.1f}초, 감지 언어: {fw_info.language} (신뢰도 {fw_info.language_probability:.0%})", flush=True)
+
+        segments = []
+        for i, s in enumerate(fw_segments):
+            segments.append({"start": s.start, "end": s.end, "text": s.text})
+            if i % 20 == 0 and i > 0:
+                print(f"[전사] 세그먼트 {i}개 처리 중... ({s.end:.0f}s / {fw_info.duration:.0f}s)", flush=True)
+
+        print(f"[전사] 세그먼트 {len(segments)}개 완료", flush=True)
 
         # 정렬(Alignment) — 실패 시 원본 세그먼트 유지
         try:
@@ -148,8 +170,9 @@ class Transcriber:
                 return_char_alignments=False,
             )
             segments = aligned.get("segments", segments)
-        except Exception:
-            pass
+            print("[전사] 타임스탬프 정렬 완료", flush=True)
+        except Exception as exc:
+            print(f"[전사] 타임스탬프 정렬 생략 (오류: {exc})", flush=True)
 
         # 화자 분리(Diarization) — resemblyzer 기반, 완전 오프라인
         diarization_ok = False
@@ -159,7 +182,9 @@ class Transcriber:
                 import diarizer
                 segments = diarizer.diarize(audio_path, segments, num_speakers=NUM_SPEAKERS)
                 diarization_ok = True
+                print("[전사] 화자 분리 완료", flush=True)
             except Exception as exc:
+                print(f"[전사] 화자 분리 실패: {exc}", flush=True)
                 _progress(f"화자 분리 실패 (전사만 저장): {exc}")
 
         # 세그먼트 → 텍스트 변환
@@ -187,5 +212,6 @@ class Transcriber:
         output_file = out_dir / f"{stem}_transcript.txt"
         output_file.write_text(transcript, encoding="utf-8")
 
+        print(f"[전사] 저장 완료: {output_file}", flush=True)
         _progress(f"전사 완료: {output_file.name}")
         return transcript, str(output_file)
