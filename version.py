@@ -2,10 +2,10 @@ __version__ = "1.0.12"
 
 CHANGELOG = """
 v1.0.12 (2026-04-23)
-  - [개선] install.bat: Whisper 모델 설치 시점에 사전 다운로드 (4/5 단계)
-  - config.py의 WHISPER_MODEL 읽어 올바른 모델 다운로드
-  - 다운로드 실패 시 에러 로그 출력 + pause (기존엔 조용히 넘어감)
-  - 절대 경로(%~dp0models) 사용으로 경로 오류 방지
+  - [수정] install.bat: Whisper 다운로드 헬퍼를 별도 스크립트로 분리 (download_whisper.py)
+  - 원인: WhisperModel() 생성자가 다운로드+메모리 로드를 동시 수행 → RAM 부족/ctranslate2 오류
+  - 수정: faster_whisper.utils.download_model or huggingface_hub.snapshot_download 으로 파일만 다운로드
+  - 이미 캐시된 경우 스킵, 실패 시 에러 출력 + pause
   - 단계 표시 4단계 -> 5단계로 변경
 
 

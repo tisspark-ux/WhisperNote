@@ -81,18 +81,15 @@ if errorlevel 1 (
 )
 echo   Packages installed.
 
-rem Whisper model pre-download
+rem Whisper model pre-download (download only, no model loading)
 echo [4/5] Downloading Whisper model (first time only, may take several minutes)...
-set MODELS_DIR=%~dp0models
-%PYTHON% -c "from config import WHISPER_MODEL; from faster_whisper import WhisperModel; WhisperModel(WHISPER_MODEL, device='cpu', compute_type='int8', download_root=r'%MODELS_DIR%')" 2>> %LOG%
+%PYTHON% %~dp0download_whisper.py 2>> %LOG%
 if errorlevel 1 (
     echo [WARN] Whisper model download failed. Error details:
     type %LOG%
     echo.
     echo   Will retry on first transcription. Press any key to continue...
     pause >nul
-) else (
-    echo   Whisper model ready.
 )
 
 rem Ollama
