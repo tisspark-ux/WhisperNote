@@ -2,14 +2,13 @@ __version__ = "1.0.13"
 
 CHANGELOG = """
 v1.0.13 (2026-04-23)
+  - [수정] download_whisper.py: 회사 프록시 SSL 인증서 우회 패치 추가
+    - ssl.SSLCertVerificationError: self-signed certificate 오류 해결
+    - HF_HUB_DISABLE_SSL_VERIFICATION, REQUESTS_CA_BUNDLE 환경변수 설정
+    - ssl._create_default_https_context 패치, requests.Session verify=False
+    - app.py와 동일한 SSL 우회 방식 적용
   - [기능] install_whisper.bat: Whisper 모델 단독 재다운로드 배치 파일 추가
-  - [개선] download_whisper.py: 전면 개선
-    - --log <path> 인자로 로그 파일 동시 기록 (Tee 방식, 콘솔+파일 동시 출력)
-    - 진단 헤더: 시간/Python 버전/faster-whisper 버전/huggingface-hub 버전
-    - Method 1: faster_whisper.utils.download_model (메모리 로드 없음)
-    - Method 2: huggingface_hub.snapshot_download (fallback)
-    - 실패 시 전체 traceback 기록
-  - 실패 시 whisper_install.log 내용 콘솔에 출력 + pause (창 안 닫힘)
+  - [개선] download_whisper.py: --log Tee 로깅, 진단 헤더, Method1/2 fallback
 
 
 v1.0.12 (2026-04-23)

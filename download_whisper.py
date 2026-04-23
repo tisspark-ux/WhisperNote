@@ -7,9 +7,30 @@ Writes all output to both console and log file when --log is given.
 """
 import sys
 import os
+import ssl
 import traceback
 import datetime
 from pathlib import Path
+
+# ---------------------------------------------------------------------------
+# SSL bypass — corporate proxy injects self-signed cert, same fix as app.py
+# Must be applied before any network import (requests, urllib3, huggingface_hub)
+# ---------------------------------------------------------------------------
+os.environ["REQUESTS_CA_BUNDLE"] = ""
+os.environ["CURL_CA_BUNDLE"] = ""
+os.environ["HF_HUB_DISABLE_SSL_VERIFICATION"] = "1"  # huggingface_hub >= 0.23
+
+ssl._create_default_https_context = ssl._create_unverified_context
+
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+import requests
+_orig_request = requests.Session.request
+def _no_verify(self, method, url, **kwargs):
+    kwargs["verify"] = False
+    return _orig_request(self, method, url, **kwargs)
+requests.Session.request = _no_verify
 
 
 # ---------------------------------------------------------------------------
