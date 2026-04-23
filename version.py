@@ -1,12 +1,18 @@
-__version__ = "1.0.12"
+__version__ = "1.0.13"
 
 CHANGELOG = """
+v1.0.13 (2026-04-23)
+  - [기능] install_whisper.bat: Whisper 모델 단독 재다운로드 배치 파일 추가
+  - [개선] download_whisper.py: 전면 개선
+    - --log <path> 인자로 로그 파일 동시 기록 (Tee 방식, 콘솔+파일 동시 출력)
+    - 진단 헤더: 시간/Python 버전/faster-whisper 버전/huggingface-hub 버전
+    - Method 1: faster_whisper.utils.download_model (메모리 로드 없음)
+    - Method 2: huggingface_hub.snapshot_download (fallback)
+    - 실패 시 전체 traceback 기록
+  - 실패 시 whisper_install.log 내용 콘솔에 출력 + pause (창 안 닫힘)
+
+
 v1.0.12 (2026-04-23)
-  - [수정] install.bat: Whisper 다운로드 헬퍼를 별도 스크립트로 분리 (download_whisper.py)
-  - 원인: WhisperModel() 생성자가 다운로드+메모리 로드를 동시 수행 → RAM 부족/ctranslate2 오류
-  - 수정: faster_whisper.utils.download_model or huggingface_hub.snapshot_download 으로 파일만 다운로드
-  - 이미 캐시된 경우 스킵, 실패 시 에러 출력 + pause
-  - 단계 표시 4단계 -> 5단계로 변경
 
 
 v1.0.11 (2026-04-23)
