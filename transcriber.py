@@ -74,6 +74,12 @@ class Transcriber:
     # 모델 로드 (최초 1회만 실행)
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _is_model_cached() -> bool:
+        """faster-whisper 모델이 로컬 캐시에 있는지 확인."""
+        models_dir = Path(__file__).parent / "models"
+        return any(models_dir.rglob("model.bin")) or any(models_dir.rglob("model.safetensors"))
+
     def _load_model(self):
         if self._model is None:
             gpu_info = ""
@@ -83,20 +89,68 @@ class Transcriber:
                 except Exception:
                     pass
             else:
-                gpu_info = " (GPU 없음 → CPU 사용, 속도 매우 느림)"
+                gpu_info = " (GPU 없음 → CPU 사용, 속도 느림)"
 
             print(f"[전사] 모델 로딩 중: {WHISPER_MODEL} / {self.device}{gpu_info} / {self.compute_type}", flush=True)
-            print(f"[전사] 모델 캐시 위치: {Path(__file__).parent / 'models'}", flush=True)
-            print("[전사] 최초 실행 시 HuggingFace에서 모델 다운로드 (~1.6GB) — 시간이 걸릴 수 있습니다", flush=True)
 
-            # faster_whisper 직접 사용 — whisperx.load_model()은 pyannote VAD 필요
-            self._model = WhisperModel(
+            if not self._is_model_cached():
+                _SIZE = {
+                    "tiny": "75MB", "base": "145MB", "small": "466MB",
+                    "medium": "1.5GB", "large-v3": "3.1GB", "large-v3-turbo": "1.6GB",
+                }
+                size_hint = _SIZE.get(WHISPER_MODEL, "~수백MB")
+                print(f"[다운로드] {WHISPER_MODEL} 모델 없음 — HuggingFace 다운로드 시작 (예상 크기: {size_hint})", flush=True)
+                print("[다운로드] 아래에 진행 상황이 표시됩니다...", flush=True)
+                self._model = self._load_with_progress()
+            else:
+                self._model = WhisperModel(
+                    WHISPER_MODEL,
+                    device=self.device,
+                    compute_type=self.compute_type,
+                    download_root=str(Path(__file__).parent / "models"),
+                )
+
+            print("[전사] 모델 로딩 완료", flush=True)
+
+    def _load_with_progress(self) -> "WhisperModel":
+        """tqdm을 교체해 [다운로드] 형식으로 진행률 출력 후 모델 로드."""
+        import tqdm as _tqdm_mod
+
+        _orig_tqdm = _tqdm_mod.tqdm
+
+        class _DownloadTqdm(_orig_tqdm):
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self._last_pct = -1
+
+            def update(self, n=1):
+                super().update(n)
+                if self.total and self.total > 1024 * 1024:
+                    pct = int(self.n / self.total * 100)
+                    if pct != self._last_pct and pct % 5 == 0:
+                        mb_done  = self.n / (1024 ** 2)
+                        mb_total = self.total / (1024 ** 2)
+                        bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
+                        desc = getattr(self, "desc", "") or ""
+                        print(
+                            f"\r[다운로드] {bar} {pct:3d}%  {mb_done:.0f}/{mb_total:.0f}MB  {desc}",
+                            end="", flush=True,
+                        )
+                        self._last_pct = pct
+                        if pct == 100:
+                            print(flush=True)
+
+        _tqdm_mod.tqdm = _DownloadTqdm
+        try:
+            model = WhisperModel(
                 WHISPER_MODEL,
                 device=self.device,
                 compute_type=self.compute_type,
                 download_root=str(Path(__file__).parent / "models"),
             )
-            print(f"[전사] 모델 로딩 완료", flush=True)
+        finally:
+            _tqdm_mod.tqdm = _orig_tqdm
+        return model
 
     # ------------------------------------------------------------------
     # 전사

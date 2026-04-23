@@ -1,6 +1,16 @@
-__version__ = "1.0.9"
+__version__ = "1.0.10"
 
 CHANGELOG = """
+v1.0.10 (2026-04-23)
+  - [기능] 자동 처리 대기열 실시간 표시 — "🔄 처리 중 / ⏳ 대기 중" UI 패널
+  - [기능] 자동 요약 — 모든 파트 전사 완료 후 통합 전사문 자동 요약, 결과 UI 반영
+  - [개선] 모델 다운로드 진행률 터미널 출력 — tqdm 교체로 5% 단위 막대 표시
+    [다운로드] ████████░░ 40%  640/1600MB  model.bin
+  - app.py: AutoTranscriptionWorker 재설계 (대기열 라벨, finalize job, 자동 요약)
+  - app.py: handle_chunk_poll 9-output (+ summary_output, summary_file_path, queue_status)
+  - app.py: btn_start에 ollama_model, summary_type 입력 추가
+
+
 v1.0.9 (2026-04-23)
   - [진단] transcriber.py: 각 단계마다 터미널 print 출력
     모델 로딩/GPU 여부/오디오 길이/세그먼트 진행/정렬/화자분리/저장 경로
