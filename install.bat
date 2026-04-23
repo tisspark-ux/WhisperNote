@@ -27,10 +27,10 @@ for /f "tokens=*" %%i in ('%PYTHON_CMD% --version') do echo   Using %%i
 
 rem Virtual environment
 if not exist ".venv" (
-    echo [1/4] Creating virtual environment...
+    echo [1/5] Creating virtual environment...
     %PYTHON_CMD% -m venv .venv
 ) else (
-    echo [1/4] Virtual environment exists, skipping.
+    echo [1/5] Virtual environment exists, skipping.
 )
 
 set PIP=.venv\Scripts\pip.exe
@@ -40,7 +40,7 @@ rem Upgrade pip - silent (instant, no progress needed)
 %PYTHON% -m pip install --upgrade pip -q >> %LOG% 2>&1
 
 rem PyTorch (CUDA 13.0 / RTX A4000)
-echo [2/4] Installing PyTorch...
+echo [2/5] Installing PyTorch...
 %PYTHON% -c "import torch" >nul 2>&1
 if not errorlevel 1 (
     for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v already installed, skipping.
@@ -57,7 +57,7 @@ echo   PyTorch installed.
 :torch_done
 
 rem Other packages
-echo [3/4] Installing packages...
+echo [3/5] Installing packages...
 echo   [3a] webrtcvad-wheels...
 %PIP% install webrtcvad-wheels -q 2>> %LOG%
 if errorlevel 1 (
@@ -81,8 +81,16 @@ if errorlevel 1 (
 )
 echo   Packages installed.
 
+rem Whisper model pre-download
+echo [4/5] Downloading Whisper model (first time only, may take several minutes)...
+%PYTHON% -c "from config import WHISPER_MODEL; from faster_whisper import WhisperModel; WhisperModel(WHISPER_MODEL, device='cpu', compute_type='int8', download_root='models')"
+if errorlevel 1 (
+    echo [WARN] Whisper model download failed. Will retry on first transcription.
+)
+echo   Whisper model ready.
+
 rem Ollama
-echo [4/4] Checking Ollama...
+echo [5/5] Checking Ollama...
 where ollama >nul 2>&1
 if errorlevel 1 (
     echo   [INFO] Ollama not found. Install from https://ollama.com
