@@ -139,6 +139,19 @@ _MIX_AUTO      = -5
 
 print(f"WhisperNote v{__version__}")
 
+# GPU 상태 출력 (전사 가능 여부 확인용)
+try:
+    import torch as _torch
+    if _torch.cuda.is_available():
+        _gpu = _torch.cuda.get_device_name(0)
+        _mem = _torch.cuda.get_device_properties(0).total_memory // (1024**3)
+        print(f"  GPU: {_gpu} ({_mem}GB) — CUDA 전사 사용 가능", flush=True)
+    else:
+        print("  GPU: 없음 — CPU 전사 (large-v3-turbo 기준 수 시간 소요, 작은 모델 권장)", flush=True)
+        print("       config.py 에서 WHISPER_MODEL = \"base\" 또는 \"small\" 로 변경 시 속도 개선", flush=True)
+except Exception:
+    print("  GPU 상태 확인 불가", flush=True)
+
 recorder   = AudioRecorder()
 transcriber = Transcriber()
 summarizer  = Summarizer()
