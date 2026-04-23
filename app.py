@@ -165,7 +165,7 @@ def _fmt_sec(secs: float) -> str:
 
 
 class AutoTranscriptionWorker:
-    """녹음 청크가 완료될 때마다 백그라운드에서 순차 전사 처리."""
+    """녹음 청크 완료 시 순차 전사 → 전체 완료 후 자동 요약."""
 
     def __init__(self):
         self._queue: queue.Queue = queue.Queue()
@@ -173,17 +173,52 @@ class AutoTranscriptionWorker:
         self._thread: threading.Thread | None = None
         self._combined_path: Path | None = None
         self._out_dir: Path | None = None
+        self._model_name: str | None = None
+        self._summary_type: str = "회의"
         self._lock = threading.Lock()
+        self._current_label: str | None = None
+        self._pending_labels: list = []
+        self._session_active: bool = False
+        self._finalize_triggered: bool = False
 
-    def reset(self, combined_path: Path | None, out_dir: Path | None):
+    # ── 세션 초기화 ──────────────────────────────────────────
+    def reset(self, combined_path: Path | None, out_dir: Path | None,
+              model_name: str | None = None, summary_type: str = "회의"):
         self._combined_path = combined_path
         self._out_dir = out_dir
+        self._model_name = model_name
+        self._summary_type = summary_type
+        with self._lock:
+            self._current_label = None
+            self._pending_labels = []
+            self._session_active = True
+            self._finalize_triggered = False
+
+    # ── 대기열 관리 ──────────────────────────────────────────
+    def _make_label(self, job: dict) -> str:
+        if job.get("type") == "finalize":
+            return "자동 요약"
+        part = job["part_index"]
+        start = _fmt_sec(job["start_sec"])
+        end = _fmt_sec(job["end_sec"])
+        if job.get("has_parts"):
+            return f"파트 {part} 전사 ({start} ~ {end})"
+        return f"전사 ({start} ~ {end})"
 
     def enqueue(self, job: dict):
+        label = self._make_label(job)
+        with self._lock:
+            self._pending_labels.append(label)
         self._queue.put(job)
         if self._thread is None or not self._thread.is_alive():
             self._thread = threading.Thread(target=self._run, daemon=True)
             self._thread.start()
+
+    def enqueue_finalize(self):
+        """모든 전사 완료 후 자동 요약 job 삽입."""
+        with self._lock:
+            self._finalize_triggered = True
+        self.enqueue({"type": "finalize"})
 
     def pop_result(self) -> dict | None:
         with self._lock:
@@ -194,59 +229,113 @@ class AutoTranscriptionWorker:
             self._thread is not None and self._thread.is_alive()
         )
 
+    def get_status_text(self) -> str:
+        with self._lock:
+            current = self._current_label
+            pending = list(self._pending_labels)
+        if not current and not pending:
+            return ""
+        lines = []
+        if current:
+            lines.append(f"🔄 처리 중: {current}")
+        for p in pending:
+            lines.append(f"⏳ 대기 중: {p}")
+        return "\n".join(lines)
+
+    # ── 백그라운드 실행 ──────────────────────────────────────
     def _run(self):
         while True:
             try:
                 job = self._queue.get(timeout=2)
             except queue.Empty:
                 break
+            label = self._make_label(job)
+            with self._lock:
+                self._current_label = label
+                if label in self._pending_labels:
+                    self._pending_labels.remove(label)
             try:
-                wav_path = job["wav_path"]
-                part_index = job["part_index"]
-                start_sec = job["start_sec"]
-                end_sec = job["end_sec"]
-                has_parts = job["has_parts"]
-
-                transcript_text, part_file = transcriber.transcribe(
-                    wav_path, output_dir=self._out_dir
-                )
-
-                if has_parts:
-                    header = (
-                        f"[파트 {part_index} - "
-                        f"{_fmt_sec(start_sec)} ~ {_fmt_sec(end_sec)}]\n"
-                    )
-                    combined = self._combined_path
-                    if combined is not None:
-                        existing = combined.read_text(encoding="utf-8") if combined.exists() else ""
-                        sep = "\n\n" if existing else ""
-                        combined.write_text(
-                            existing + sep + header + transcript_text,
-                            encoding="utf-8",
-                        )
-                        display_text = combined.read_text(encoding="utf-8")
-                        status_msg = f"파트 {part_index} 자동 전사 완료 — {combined.name}"
-                        file_path_str = str(combined)
-                    else:
-                        display_text = header + transcript_text
-                        status_msg = f"파트 {part_index} 자동 전사 완료 — {Path(part_file).name}"
-                        file_path_str = str(part_file)
+                if job.get("type") == "finalize":
+                    self._do_summarize()
                 else:
-                    display_text = transcript_text
-                    status_msg = f"자동 전사 완료 — {Path(part_file).name}"
-                    file_path_str = str(part_file)
-
-                with self._lock:
-                    self._results.append({
-                        "transcript": display_text,
-                        "file_path": file_path_str,
-                        "status": status_msg,
-                    })
+                    self._do_transcribe(job)
             except Exception as exc:
                 with self._lock:
                     self._results.append({"error": str(exc)})
             finally:
+                with self._lock:
+                    self._current_label = None
                 self._queue.task_done()
+
+    def _do_transcribe(self, job: dict):
+        wav_path   = job["wav_path"]
+        part_index = job["part_index"]
+        start_sec  = job["start_sec"]
+        end_sec    = job["end_sec"]
+        has_parts  = job["has_parts"]
+
+        transcript_text, part_file = transcriber.transcribe(
+            wav_path, output_dir=self._out_dir
+        )
+
+        if has_parts:
+            header = (
+                f"[파트 {part_index} - "
+                f"{_fmt_sec(start_sec)} ~ {_fmt_sec(end_sec)}]\n"
+            )
+            combined = self._combined_path
+            if combined is not None:
+                existing = combined.read_text(encoding="utf-8") if combined.exists() else ""
+                sep = "\n\n" if existing else ""
+                combined.write_text(
+                    existing + sep + header + transcript_text, encoding="utf-8"
+                )
+                display_text = combined.read_text(encoding="utf-8")
+                status_msg   = f"파트 {part_index} 자동 전사 완료 — {combined.name}"
+                file_path_str = str(combined)
+            else:
+                display_text  = header + transcript_text
+                status_msg    = f"파트 {part_index} 자동 전사 완료 — {Path(part_file).name}"
+                file_path_str = str(part_file)
+        else:
+            display_text  = transcript_text
+            status_msg    = f"자동 전사 완료 — {Path(part_file).name}"
+            file_path_str = str(part_file)
+
+        with self._lock:
+            self._results.append({
+                "type": "transcript",
+                "transcript": display_text,
+                "file_path": file_path_str,
+                "status": status_msg,
+            })
+
+    def _do_summarize(self):
+        combined = self._combined_path
+        if combined is None or not combined.exists():
+            return
+        transcript_text = combined.read_text(encoding="utf-8").strip()
+        if not transcript_text:
+            return
+        audio_stem = combined.stem.replace("_transcript", "")
+        try:
+            summary, s_file = summarizer.summarize(
+                transcript_text,
+                audio_stem,
+                model=self._model_name,
+                output_dir=self._out_dir,
+                summary_type=self._summary_type,
+            )
+            with self._lock:
+                self._results.append({
+                    "type": "summary",
+                    "summary": summary,
+                    "file_path": s_file,
+                    "status": f"자동 요약 완료 — {Path(s_file).name}",
+                })
+        except Exception as exc:
+            with self._lock:
+                self._results.append({"error": f"자동 요약 실패: {exc}"})
 
 
 auto_worker = AutoTranscriptionWorker()
@@ -497,7 +586,8 @@ body, .gradio-container {
 # 로직 함수
 # ---------------------------------------------------------------------------
 
-def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_minutes):
+def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_minutes,
+                           model_name, summary_type_val):
     _fail = lambda msg: (gr.update(interactive=True), gr.update(interactive=False),
                          gr.update(interactive=False, value="⏸ 일시정지"),
                          gr.update(interactive=True, value="마이크 테스트"), msg, "")
@@ -544,6 +634,8 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_
         auto_worker.reset(
             combined_path=transcript_out / f"{base}_transcript.txt",
             out_dir=transcript_out,
+            model_name=model_name,
+            summary_type=summary_type_val,
         )
         return (
             gr.update(interactive=False),                        # btn_start
@@ -586,43 +678,60 @@ def handle_pause_resume():
 
 
 def handle_chunk_poll():
-    """2초마다 청크/전사 상태를 폴링해 UI 갱신. 타이머 active도 자체 제어."""
-    r_status = gr.update()
-    r_file = gr.update()
+    """2초마다 청크/전사/요약 상태를 폴링해 UI 갱신. 타이머 active 자체 제어."""
+    r_status     = gr.update()
+    r_file       = gr.update()
     r_transcript = gr.update()
-    r_tfile = gr.update()
-    r_pipeline = gr.update()
+    r_tfile      = gr.update()
+    r_summary    = gr.update()
+    r_sfile      = gr.update()
+    r_pipeline   = gr.update()
 
+    # 청크 알림
     msg = recorder.pop_chunk_message()
     if msg:
         r_status = gr.update(value=msg)
-        r_file = gr.update(value=str(recorder.current_file))
+        if recorder.current_file:
+            r_file = gr.update(value=str(recorder.current_file))
 
     # 전사 대기 작업 → worker 큐로 이동
-    pending_count = 0
     job = recorder.pop_pending_transcription()
     while job is not None:
         auto_worker.enqueue(job)
-        pending_count += 1
         job = recorder.pop_pending_transcription()
-    if pending_count > 0:
-        r_pipeline = gr.update(value=f"자동 전사 대기 중... ({pending_count}개)")
 
-    # 완료된 전사 결과 반영
+    # 녹음 종료 + recorder 큐 소진 + worker 아직 안 끝난 경우: 자동 요약 예약
+    if (
+        not recorder.recording
+        and auto_worker._session_active
+        and not auto_worker._finalize_triggered
+        and not auto_worker.is_busy()
+    ):
+        auto_worker.enqueue_finalize()
+
+    # 완료된 결과 반영
     result = auto_worker.pop_result()
     while result is not None:
         if "error" in result:
-            r_pipeline = gr.update(value=f"자동 전사 실패: {result['error']}")
-        else:
+            r_pipeline = gr.update(value=f"⚠ {result['error']}")
+        elif result.get("type") == "transcript":
             r_transcript = gr.update(value=result["transcript"])
-            r_tfile = gr.update(value=result["file_path"])
+            r_tfile      = gr.update(value=result["file_path"])
+            r_pipeline   = gr.update(value=result["status"])
+        elif result.get("type") == "summary":
+            r_summary  = gr.update(value=result["summary"])
+            r_sfile    = gr.update(value=result["file_path"])
             r_pipeline = gr.update(value=result["status"])
         result = auto_worker.pop_result()
+
+    # 대기열 현황 텍스트 갱신
+    queue_text = auto_worker.get_status_text()
+    r_queue = gr.update(value=queue_text)
 
     still_busy = recorder.recording or auto_worker.is_busy()
     r_timer = gr.update(active=still_busy)
 
-    return r_status, r_file, r_transcript, r_tfile, r_pipeline, r_timer
+    return r_status, r_file, r_transcript, r_tfile, r_summary, r_sfile, r_pipeline, r_queue, r_timer
 
 
 def handle_mic_test(device_idx):
@@ -1254,6 +1363,17 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         lines=1,
                         elem_id="pipeline-status",
                     )
+                    queue_status = gr.Textbox(
+                        value="",
+                        interactive=False,
+                        show_label=True,
+                        label="자동 처리 대기열",
+                        placeholder="대기 중인 작업 없음",
+                        lines=3,
+                        max_lines=6,
+                        elem_id="queue-status",
+                        visible=True,
+                    )
 
                     gr.HTML('<div class="wn-label" style="margin-top:.8rem">전사 결과</div>')
                     transcript_output = gr.Textbox(
@@ -1436,10 +1556,11 @@ python app.py
     mic_gain_slider.change(lambda v: setattr(recorder, "mic_gain", v), inputs=[mic_gain_slider])
     system_gain_slider.change(lambda v: setattr(recorder, "system_gain", v), inputs=[system_gain_slider])
 
-    # 녹음 (카테고리 + 자동분할 파라미터 추가)
+    # 녹음 (카테고리 + 자동분할 + 모델/요약구분 파라미터 추가)
     btn_start.click(
         handle_start_recording,
-        inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3, chunk_minutes_input],
+        inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3, chunk_minutes_input,
+                ollama_model, summary_type],
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
@@ -1447,10 +1568,14 @@ python app.py
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     )
     btn_pause.click(handle_pause_resume, outputs=[btn_pause, record_status])
-    chunk_poll_timer.tick(
-        handle_chunk_poll,
-        outputs=[record_status, recorded_file, transcript_output, transcript_file_path, pipeline_status, chunk_poll_timer],
-    )
+    _poll_outputs = [
+        record_status, recorded_file,
+        transcript_output, transcript_file_path,
+        summary_output, summary_file_path,
+        pipeline_status, queue_status,
+        chunk_poll_timer,
+    ]
+    chunk_poll_timer.tick(handle_chunk_poll, outputs=_poll_outputs)
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
