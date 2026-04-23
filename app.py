@@ -197,7 +197,7 @@ class AutoTranscriptionWorker:
     # ── 대기열 관리 ──────────────────────────────────────────
     def _make_label(self, job: dict) -> str:
         if job.get("type") == "finalize":
-            return "자동 요약"
+            return "자동 교정"
         part = job["part_index"]
         start = _fmt_sec(job["start_sec"])
         end = _fmt_sec(job["end_sec"])
@@ -215,7 +215,7 @@ class AutoTranscriptionWorker:
             self._thread.start()
 
     def enqueue_finalize(self):
-        """모든 전사 완료 후 자동 요약 job 삽입."""
+        """모든 전사 완료 후 자동 교정 job 삽입."""
         with self._lock:
             self._finalize_triggered = True
         self.enqueue({"type": "finalize"})
@@ -256,7 +256,7 @@ class AutoTranscriptionWorker:
                     self._pending_labels.remove(label)
             try:
                 if job.get("type") == "finalize":
-                    self._do_summarize()
+                    self._do_correct()
                 else:
                     self._do_transcribe(job)
             except Exception as exc:
@@ -310,7 +310,7 @@ class AutoTranscriptionWorker:
                 "status": status_msg,
             })
 
-    def _do_summarize(self):
+    def _do_correct(self):
         combined = self._combined_path
         if combined is None or not combined.exists():
             return
@@ -319,23 +319,46 @@ class AutoTranscriptionWorker:
             return
         audio_stem = combined.stem.replace("_transcript", "")
         try:
-            summary, s_file = summarizer.summarize(
+            corrected, c_file = summarizer.correct_transcript(
                 transcript_text,
                 audio_stem,
                 model=self._model_name,
                 output_dir=self._out_dir,
-                summary_type=self._summary_type,
             )
             with self._lock:
                 self._results.append({
-                    "type": "summary",
-                    "summary": summary,
-                    "file_path": s_file,
-                    "status": f"자동 요약 완료 — {Path(s_file).name}",
+                    "type": "correction",
+                    "correction": corrected,
+                    "file_path": c_file,
+                    "status": f"자동 교정 완료 — {Path(c_file).name}",
                 })
         except Exception as exc:
             with self._lock:
-                self._results.append({"error": f"자동 요약 실패: {exc}"})
+                self._results.append({"error": f"자동 교정 실패: {exc}"})
+
+    # def _do_summarize(self):
+    #     combined = self._combined_path
+    #     if combined is None or not combined.exists():
+    #         return
+    #     transcript_text = combined.read_text(encoding="utf-8").strip()
+    #     if not transcript_text:
+    #         return
+    #     audio_stem = combined.stem.replace("_transcript", "")
+    #     try:
+    #         summary, s_file = summarizer.summarize(
+    #             transcript_text, audio_stem, model=self._model_name,
+    #             output_dir=self._out_dir, summary_type=self._summary_type,
+    #         )
+    #         with self._lock:
+    #             self._results.append({
+    #                 "type": "summary",
+    #                 "summary": summary,
+    #                 "file_path": s_file,
+    #                 "status": f"자동 요약 완료 — {Path(s_file).name}",
+    #             })
+    #     except Exception as exc:
+    #         with self._lock:
+    #             self._results.append({"error": f"자동 요약 실패: {exc}"})
 
 
 auto_worker = AutoTranscriptionWorker()
@@ -683,8 +706,8 @@ def handle_chunk_poll():
     r_file       = gr.update()
     r_transcript = gr.update()
     r_tfile      = gr.update()
-    r_summary    = gr.update()
-    r_sfile      = gr.update()
+    r_correction = gr.update()
+    r_cfile      = gr.update()
     r_pipeline   = gr.update()
 
     # 청크 알림
@@ -718,10 +741,10 @@ def handle_chunk_poll():
             r_transcript = gr.update(value=result["transcript"])
             r_tfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
-        elif result.get("type") == "summary":
-            r_summary  = gr.update(value=result["summary"])
-            r_sfile    = gr.update(value=result["file_path"])
-            r_pipeline = gr.update(value=result["status"])
+        elif result.get("type") == "correction":
+            r_correction = gr.update(value=result["correction"])
+            r_cfile      = gr.update(value=result["file_path"])
+            r_pipeline   = gr.update(value=result["status"])
         result = auto_worker.pop_result()
 
     # 대기열 현황 텍스트 갱신
@@ -731,7 +754,7 @@ def handle_chunk_poll():
     still_busy = recorder.recording or auto_worker.is_busy()
     r_timer = gr.update(active=still_busy)
 
-    return r_status, r_file, r_transcript, r_tfile, r_summary, r_sfile, r_pipeline, r_queue, r_timer
+    return r_status, r_file, r_transcript, r_tfile, r_correction, r_cfile, r_pipeline, r_queue, r_timer
 
 
 def handle_mic_test(device_idx):
@@ -1571,7 +1594,7 @@ python app.py
     _poll_outputs = [
         record_status, recorded_file,
         transcript_output, transcript_file_path,
-        summary_output, summary_file_path,
+        correction_output, corrected_file_path,
         pipeline_status, queue_status,
         chunk_poll_timer,
     ]

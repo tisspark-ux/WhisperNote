@@ -47,7 +47,7 @@ if not errorlevel 1 (
     goto torch_done
 )
 echo   Downloading PyTorch (CUDA 13.0) - may take several minutes...
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 -q 2>> %LOG%
+%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] PyTorch installation failed. Error details:
     type %LOG%
@@ -73,7 +73,7 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 echo   [3c] requirements.txt (may take a few minutes)...
-%PIP% install -r requirements.txt -q 2>> %LOG%
+%PIP% install -r requirements.txt 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] requirements.txt failed. Error details:
     type %LOG%

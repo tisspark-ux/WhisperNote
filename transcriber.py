@@ -121,23 +121,25 @@ class Transcriber:
         class _DownloadTqdm(_orig_tqdm):
             def __init__(self, *args, **kwargs):
                 super().__init__(*args, **kwargs)
-                self._last_pct = -1
+                self._last_pct10 = -1  # 0.1% 단위 (0-1000)
 
             def update(self, n=1):
                 super().update(n)
                 if self.total and self.total > 1024 * 1024:
-                    pct = int(self.n / self.total * 100)
-                    if pct != self._last_pct and pct % 5 == 0:
+                    pct10 = int(self.n * 1000 / self.total)  # 0.1% 단위 정수
+                    if pct10 != self._last_pct10:
+                        pct      = pct10 / 10
                         mb_done  = self.n / (1024 ** 2)
                         mb_total = self.total / (1024 ** 2)
-                        bar = "█" * (pct // 5) + "░" * (20 - pct // 5)
-                        desc = getattr(self, "desc", "") or ""
+                        filled   = pct10 * 50 // 1000  # 50자 막대
+                        bar      = "█" * filled + "░" * (50 - filled)
+                        desc     = getattr(self, "desc", "") or ""
                         print(
-                            f"\r[다운로드] {bar} {pct:3d}%  {mb_done:.0f}/{mb_total:.0f}MB  {desc}",
+                            f"\r[다운로드] {bar} {pct:5.1f}%  {mb_done:.1f}/{mb_total:.0f}MB  {desc}",
                             end="", flush=True,
                         )
-                        self._last_pct = pct
-                        if pct == 100:
+                        self._last_pct10 = pct10
+                        if pct10 >= 1000:
                             print(flush=True)
 
         _tqdm_mod.tqdm = _DownloadTqdm
