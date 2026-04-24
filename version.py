@@ -1,6 +1,14 @@
-__version__ = "1.0.16"
+__version__ = "1.0.17"
 
 CHANGELOG = """
+v1.0.17 (2026-04-24)
+  - [개선] 전사/교정 결과 UI 통합 — 원문/교정 radio로 전환
+    - 전사 결과 + 교정 결과 별도 칸 → text_display 단일 텍스트박스
+    - view_radio(원문/교정) 로 전환, 교정본 생성 시 자동으로 "교정" 선택
+    - 요약 대상 자동 연동 — 현재 보이는 텍스트(view_radio 선택)로 요약
+    - transcript_source_radio 제거, handle_summarize 단순화
+
+
 v1.0.16 (2026-04-24)
   - [수정] config.py: CORRECTION_PROMPT_TEMPLATE 개정
     - 형식 유지 강조: 타임스탬프·화자 레이블 원문 그대로
