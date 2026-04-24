@@ -1,6 +1,13 @@
-__version__ = "1.0.23"
+__version__ = "1.0.24"
 
 CHANGELOG = """
+v1.0.24 (2026-04-24)
+  - [개선] (PC) 원격회의 마이크 테스트: 마이크+시스템 오디오 동시 테스트
+    - start_test(mixed=True): 마이크 InputStream + WASAPI 루프백 동시 실행
+    - _run_wasapi_mix: self.testing 중에도 루프 유지
+    - stop_test(): mix 스레드/데이터 정리 추가
+
+
 v1.0.23 (2026-04-24)
   - [수정] (PC) 원격회의 마이크 테스트: WASAPI 테스트로 복원
     - 마이크 테스트 = 시스템 오디오 경로 검증 (레벨미터 반응 복원)
