@@ -1,6 +1,15 @@
-__version__ = "1.0.13"
+__version__ = "1.0.14"
 
 CHANGELOG = """
+v1.0.14 (2026-04-24)
+  - [수정] install.bat: PyTorch CUDA 버전 cu130(없는버전) → cu124 로 수정
+  - [수정] install.bat: torch 체크를 CUDA 가용 여부까지 확인 (CPU 전용 빌드면 재설치)
+  - [개선] app.py: GPU 진단 메시지 세분화
+    - CPU 전용 빌드: "install.bat 재실행" 안내
+    - CUDA 빌드이나 GPU 미인식: "nvidia-smi 확인" 안내
+    - 정상: GPU명 + CUDA 버전 표시
+
+
 v1.0.13 (2026-04-23)
   - [수정] download_whisper.py: 회사 프록시 SSL 인증서 우회 패치 추가
     - ssl.SSLCertVerificationError: self-signed certificate 오류 해결
