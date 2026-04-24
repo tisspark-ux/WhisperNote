@@ -1,6 +1,13 @@
-__version__ = "1.0.15"
+__version__ = "1.0.16"
 
 CHANGELOG = """
+v1.0.16 (2026-04-24)
+  - [수정] config.py: CORRECTION_PROMPT_TEMPLATE 개정
+    - 형식 유지 강조: 타임스탬프·화자 레이블 원문 그대로
+    - 교정 범위 축소: 단어·맞춤법·띄어쓰기만, 문장구조/어순/추임새 금지
+    - 줄 합치기·나누기 금지 명시
+
+
 v1.0.15 (2026-04-24)
   - [수정] requirements.txt: librosa 추가 (resemblyzer --no-deps 설치로 누락됨)
   - [수정] requirements.txt: transformers>=4.48.0 명시
