@@ -39,15 +39,15 @@ set PYTHON=.venv\Scripts\python.exe
 rem Upgrade pip - silent (instant, no progress needed)
 %PYTHON% -m pip install --upgrade pip -q >> %LOG% 2>&1
 
-rem PyTorch (CUDA 13.0 / RTX A4000)
+rem PyTorch (CUDA 12.4)
 echo [2/5] Installing PyTorch...
-%PYTHON% -c "import torch" >nul 2>&1
+%PYTHON% -c "import torch; assert torch.cuda.is_available(), 'cpu-only'" >nul 2>&1
 if not errorlevel 1 (
-    for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v already installed, skipping.
+    for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v + CUDA already installed, skipping.
     goto torch_done
 )
-echo   Downloading PyTorch (CUDA 13.0) - may take several minutes...
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu130 2>> %LOG%
+echo   Installing PyTorch with CUDA 12.4 (may take several minutes)...
+%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] PyTorch installation failed. Error details:
     type %LOG%
