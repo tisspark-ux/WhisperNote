@@ -792,7 +792,7 @@ def handle_mic_test(device_idx):
             if rdp_idx is None:
                 return gr.update(value="마이크 테스트"), ("원격 마이크를 찾을 수 없습니다.\n"
                     "RDP 클라이언트에서 '오디오 녹음' 리다이렉션을 활성화한 뒤 재연결하세요.")
-            msg = recorder.start_test(device_override=rdp_idx)
+            msg = recorder.start_test(device_override=rdp_idx, mixed=True)
         elif device_idx == _LOOPBACK_AUTO:
             loopback_idx, _ = recorder.find_loopback_device()
             msg = recorder.start_test(device_override=loopback_idx)
