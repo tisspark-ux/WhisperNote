@@ -27,6 +27,19 @@ def _handle_exception(exc_type, exc_value, exc_tb):
 
 sys.excepthook = _handle_exception
 
+# Windows CMD Quick Edit Mode 비활성화
+# Quick Edit가 켜져 있으면 창을 클릭하는 순간 프로세스가 일시정지됨 (키 입력 시 재개)
+if sys.platform == "win32":
+    try:
+        import ctypes as _ct
+        _k32 = _ct.windll.kernel32
+        _h = _k32.GetStdHandle(-10)  # STD_INPUT_HANDLE
+        _m = _ct.c_ulong()
+        _k32.GetConsoleMode(_h, _ct.byref(_m))
+        _k32.SetConsoleMode(_h, (_m.value & ~0x0040) | 0x0080)  # clear ENABLE_QUICK_EDIT
+    except Exception:
+        pass
+
 # WhisperX 모델 캐시를 프로젝트 내 models/ 폴더로 지정 (HuggingFace 최초 다운 후 오프라인 동작)
 os.environ.setdefault("HF_HOME", str(Path(__file__).parent / "models"))
 os.environ.setdefault("TORCH_HOME", str(Path(__file__).parent / "models"))

@@ -8,6 +8,18 @@ Writes all output to both console and log file when --log is given.
 import sys
 import os
 import ssl
+
+# Windows CMD Quick Edit Mode 비활성화 (클릭 시 일시정지 방지)
+if sys.platform == "win32":
+    try:
+        import ctypes as _ct
+        _k32 = _ct.windll.kernel32
+        _h = _k32.GetStdHandle(-10)
+        _m = _ct.c_ulong()
+        _k32.GetConsoleMode(_h, _ct.byref(_m))
+        _k32.SetConsoleMode(_h, (_m.value & ~0x0040) | 0x0080)
+    except Exception:
+        pass
 import traceback
 import datetime
 from pathlib import Path
