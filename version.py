@@ -1,6 +1,13 @@
-__version__ = "1.0.17"
+__version__ = "1.0.18"
 
 CHANGELOG = """
+v1.0.18 (2026-04-24)
+  - [수정] Windows CMD Quick Edit Mode 비활성화
+    - 창 클릭 시 프로세스 일시정지 문제 해결
+    - app.py, download_whisper.py: Python 시작 시 SetConsoleMode로 ENABLE_QUICK_EDIT 제거
+    - install.bat, install_whisper.bat: Python 준비 직후 동일 처리
+
+
 v1.0.17 (2026-04-24)
   - [개선] 전사/교정 결과 UI 통합 — 원문/교정 radio로 전환
     - 전사 결과 + 교정 결과 별도 칸 → text_display 단일 텍스트박스

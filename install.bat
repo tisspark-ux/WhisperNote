@@ -25,6 +25,9 @@ if errorlevel 1 (
 )
 for /f "tokens=*" %%i in ('%PYTHON_CMD% --version') do echo   Using %%i
 
+rem Disable Quick Edit Mode - prevents accidental pause when clicking the window
+%PYTHON_CMD% -c "import ctypes,sys;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
+
 rem Virtual environment
 if not exist ".venv" (
     echo [1/5] Creating virtual environment...
