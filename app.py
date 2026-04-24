@@ -1065,7 +1065,8 @@ def handle_load_transcripts(files):
 
 
 def handle_summarize(
-    display_text: str,
+    correction: str,
+    transcript: str,
     recorded: str,
     uploaded: str | None,
     model_name: str,
@@ -1074,7 +1075,7 @@ def handle_summarize(
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
-    text = display_text
+    text = correction.strip() if correction.strip() else transcript.strip()
     if not text:
         return "", "", "먼저 전사를 실행하세요."
     if merged_stem:
@@ -1108,28 +1109,41 @@ def handle_pipeline(
     if not audio:
         return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", "", *_disp_no
     out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
+    audio_stem = Path(audio).stem
     try:
         progress(0.05, desc="전사 시작...")
         transcript, t_file = transcriber.transcribe(
             audio,
-            on_progress=lambda pct, m: progress(pct * 0.75, desc=m),
+            on_progress=lambda pct, m: progress(pct * 0.65, desc=m),
             output_dir=out_dir,
         )
         if not transcript:
             return "", t_file, "", "", "전사 결과가 비어 있습니다.", "", *_disp_no
-        progress(0.7, desc="요약 중...")
+
+        corrected_text = transcript
+        c_file = ""
+        try:
+            progress(0.68, desc="교정 중...")
+            corrected_text, c_file = summarizer.correct_transcript(
+                transcript, audio_stem, model=model_name, output_dir=out_dir,
+            )
+            progress(0.72, desc="교정 완료")
+        except Exception as exc:
+            print(f"[교정] 실패 (원문으로 진행): {exc}", flush=True)
+
+        progress(0.75, desc="요약 중...")
         summary, s_file = summarizer.summarize(
-            transcript, Path(audio).stem, model=model_name, output_dir=out_dir,
+            corrected_text, audio_stem, model=model_name, output_dir=out_dir,
             summary_type=summary_type_val,
         )
         progress(1.0, desc="완료!")
         return (
             transcript, t_file,
-            summary,   s_file,
+            summary, s_file,
             f"완료 — {Path(t_file).name} / {Path(s_file).name}",
             "",
-            gr.update(value=transcript), gr.update(value=t_file),
-            gr.update(value="원문"), gr.update(value=""), gr.update(value=""),
+            gr.update(value=corrected_text), gr.update(value=c_file or t_file),
+            gr.update(value="교정" if c_file else "원문"), corrected_text, c_file,
         )
     except Exception as exc:
         return "", "", "", "", f"실패: {exc}", "", *_disp_no
@@ -1403,9 +1417,6 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_transcribe = gr.Button(
                             "전사만", elem_classes="wn-btn-secondary", scale=1
                         )
-                        btn_correct = gr.Button(
-                            "교정 시작", elem_classes="wn-btn-secondary", scale=1
-                        )
                         btn_summarize = gr.Button(
                             "요약만", elem_classes="wn-btn-secondary", scale=1
                         )
@@ -1656,8 +1667,7 @@ python app.py
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
         outputs=[transcript_output, transcript_file_path, merged_stem_state, pipeline_status,
                  text_display, display_file_path, view_radio, correction_output, corrected_file_path],
-    )
-    btn_correct.click(
+    ).then(
         handle_correct,
         inputs=[transcript_output, recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
         outputs=[correction_output, corrected_file_path, pipeline_status,
@@ -1672,7 +1682,7 @@ python app.py
     )
     btn_summarize.click(
         handle_summarize,
-        inputs=[text_display,
+        inputs=[correction_output, transcript_output,
                 recorded_file, uploaded_file, ollama_model, merged_stem_state, summary_type] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
