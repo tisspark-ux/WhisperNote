@@ -1,6 +1,16 @@
-__version__ = "1.0.18"
+__version__ = "1.0.19"
 
 CHANGELOG = """
+v1.0.19 (2026-04-24)
+  - [개선] 전사 진행률 실시간 반영 (0.1% 단위)
+    - transcriber.py: on_progress(pct, msg) 시그니처로 변경
+    - 오디오 시간 기반 실제 진행률 계산 (s.end / duration)
+    - 단계별 구간: 모델로딩 0-5%, 전사 5-75%, 정렬 75-88%, 화자분리 88-97%, 저장 97-100%
+    - 터미널 출력은 5% 단위 유지 (과도한 출력 방지)
+  - app.py: on_progress 콜백 시그니처 통일 (lambda pct, m)
+    - handle_pipeline: 전사 구간 0-75% 로 스케일
+
+
 v1.0.18 (2026-04-24)
   - [수정] Windows CMD Quick Edit Mode 비활성화
     - 창 클릭 시 프로세스 일시정지 문제 해결
