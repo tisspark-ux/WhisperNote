@@ -1,6 +1,12 @@
-__version__ = "1.0.20"
+__version__ = "1.0.21"
 
 CHANGELOG = """
+v1.0.21 (2026-04-24)
+  - [수정] recorder.py: WASAPI 스레드 COM 초기화 누락 (Error 0x800401f0)
+    - _run_wasapi_loopback, _run_wasapi_mix: CoInitialize/CoUninitialize 추가
+    - 원격회의 마이크 테스트/녹음 시 즉시 실패하던 문제 해결
+
+
 v1.0.20 (2026-04-24)
   - [개선] 전사 완료 후 자동 교정 실행 (교정 버튼 제거)
     - btn_correct 버튼 UI에서 삭제
