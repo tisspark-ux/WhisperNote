@@ -198,9 +198,9 @@ class Transcriber:
             vad_filter=WHISPER_VAD_FILTER,
             initial_prompt=WHISPER_INITIAL_PROMPT,
             temperature=0,
-            condition_on_previous_text=True,
-            no_speech_threshold=0.6,
-            compression_ratio_threshold=2.4,
+            condition_on_previous_text=False,
+            no_speech_threshold=0.5,
+            compression_ratio_threshold=1.8,
             log_prob_threshold=-1.0,
         )
         dur = fw_info.duration or 1.0
