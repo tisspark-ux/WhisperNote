@@ -1,6 +1,14 @@
-__version__ = "1.0.21"
+__version__ = "1.0.22"
 
 CHANGELOG = """
+v1.0.22 (2026-04-24)
+  - [개선] (PC) 원격회의 옵션: WASAPI 전용 -> 마이크+시스템 혼합 모드로 교체
+    - 라벨: "(PC) 🎧 원격회의" -> "(PC) 🎙+🎧 원격회의"
+    - 녹음: wasapi_loopback 전용 -> mixed=True(기본 마이크 + WASAPI 혼합)
+    - 마이크 테스트: WASAPI 테스트 -> 기본 마이크 테스트로 변경
+    - 게인 슬라이더: 마이크+시스템 볼륨 둘 다 표시
+
+
 v1.0.21 (2026-04-24)
   - [수정] recorder.py: WASAPI 스레드 COM 초기화 누락 (Error 0x800401f0)
     - _run_wasapi_loopback, _run_wasapi_mix: CoInitialize/CoUninitialize 추가
