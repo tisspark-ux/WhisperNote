@@ -250,6 +250,23 @@ class AudioRecorder:
     # ------------------------------------------------------------------
     # 레벨 측정
     # ------------------------------------------------------------------
+    # 오디오 믹싱
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _mix_mic_system(mic_arr: np.ndarray, sys_arr: np.ndarray) -> np.ndarray:
+        """마이크+시스템 오디오 혼합. 마이크가 너무 작으면 자동 보정(최대 8배)."""
+        min_len = min(len(mic_arr), len(sys_arr))
+        m = mic_arr[:min_len].copy()
+        s = sys_arr[:min_len]
+        mic_rms = float(np.sqrt(np.mean(m ** 2)))
+        sys_rms = float(np.sqrt(np.mean(s ** 2)))
+        if mic_rms > 1e-6 and sys_rms > mic_rms * 2:
+            boost = min(sys_rms / mic_rms, 8.0)
+            m = np.clip(m * boost, -1.0, 1.0)
+        return np.clip(m + s, -1.0, 1.0)
+
+    # ------------------------------------------------------------------
 
     def get_level(self) -> float:
         """현재 오디오 레벨 0–100. 녹음 중(일시정지 제외) 또는 테스트 중일 때 동작."""
@@ -546,8 +563,7 @@ class AudioRecorder:
                 mic_arr = np.concatenate(mic_data, axis=0) if mic_data else None
                 mix_arr = np.concatenate(mix_data, axis=0)
                 if mic_arr is not None:
-                    min_len = min(len(mic_arr), len(mix_arr))
-                    audio_array = np.clip(mic_arr[:min_len] + mix_arr[:min_len], -1.0, 1.0)
+                    audio_array = self._mix_mic_system(mic_arr, mix_arr)
                 else:
                     audio_array = mix_arr
             else:
@@ -649,8 +665,7 @@ class AudioRecorder:
             mic_arr = np.concatenate(mic_data, axis=0) if mic_data else None
             mix_arr = np.concatenate(mix_data, axis=0) if mix_data else None
             if mic_arr is not None and mix_arr is not None:
-                min_len = min(len(mic_arr), len(mix_arr))
-                audio_array = np.clip(mic_arr[:min_len] + mix_arr[:min_len], -1.0, 1.0)
+                audio_array = self._mix_mic_system(mic_arr, mix_arr)
             else:
                 audio_array = mic_arr if mic_arr is not None else mix_arr
         else:
