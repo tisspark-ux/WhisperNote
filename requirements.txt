@@ -20,10 +20,15 @@ scipy
 # Transcription (pyannote pinned before whisperx to avoid version conflict)
 pyannote.audio==3.4.0
 whisperx
+# transformers>=4.48.0: satisfies both pyannote.audio==3.4.0 (>=4.39.1) and whisperx (>=4.48.0)
+# also fixes Wav2Vec2ForCTC alignment model import error
+transformers>=4.48.0
 
 # Speaker diarization
 webrtcvad-wheels
 # resemblyzer installed via install.bat --no-deps (avoids webrtcvad build conflict)
+# librosa must be listed explicitly because resemblyzer is installed --no-deps
+librosa
 scikit-learn
 
 # Ollama HTTP client

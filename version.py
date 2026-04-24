@@ -1,6 +1,13 @@
-__version__ = "1.0.14"
+__version__ = "1.0.15"
 
 CHANGELOG = """
+v1.0.15 (2026-04-24)
+  - [수정] requirements.txt: librosa 추가 (resemblyzer --no-deps 설치로 누락됨)
+  - [수정] requirements.txt: transformers>=4.48.0 명시
+    - Wav2Vec2ForCTC 정렬 모델 임포트 오류 해결
+    - pyannote.audio==3.4.0 (>=4.39.1) + whisperx (>=4.48.0) 동시 충족
+
+
 v1.0.14 (2026-04-24)
   - [수정] install.bat: PyTorch CUDA 버전 cu130(없는버전) → cu124 로 수정
   - [수정] install.bat: torch 체크를 CUDA 가용 여부까지 확인 (CPU 전용 빌드면 재설치)
