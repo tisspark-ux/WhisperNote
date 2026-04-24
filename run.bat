@@ -1,4 +1,10 @@
 @echo off
+
+rem Disable Quick Edit Mode immediately - prevents window freeze on mouse click
+python                    -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
+py                        -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
+.venv\Scripts\python.exe  -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
+
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
 )
