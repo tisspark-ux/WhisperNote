@@ -1,6 +1,13 @@
-__version__ = "1.0.26"
+__version__ = "1.0.27"
 
 CHANGELOG = """
+v1.0.27 (2026-04-24)
+  - [개선] 혼합 녹음 마이크 음량 자동 보정
+    - _mix_mic_system(): 마이크 RMS가 시스템 오디오 절반 미만이면 최대 8배 자동 증폭
+    - stop(), _do_chunk_split() 모두 _mix_mic_system() 호출로 통일
+    - mic_gain_slider max: 4.0 -> 10.0 (수동 증폭 범위 확대)
+
+
 v1.0.26 (2026-04-24)
   - [수정] transcriber.py: Whisper 반복 환각 방지
     - condition_on_previous_text: True -> False (무음 구간 반복 생성 차단)

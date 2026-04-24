@@ -1311,7 +1311,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     with gr.Row():
                         mic_gain_slider = gr.Slider(
                             label="🎙 마이크 볼륨",
-                            minimum=0.5, maximum=4.0, value=1.0, step=0.1,
+                            minimum=0.5, maximum=10.0, value=1.0, step=0.5,
                             visible=True, scale=1,
                         )
                         system_gain_slider = gr.Slider(
