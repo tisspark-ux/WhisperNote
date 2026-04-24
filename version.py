@@ -1,6 +1,14 @@
-__version__ = "1.0.19"
+__version__ = "1.0.20"
 
 CHANGELOG = """
+v1.0.20 (2026-04-24)
+  - [개선] 전사 완료 후 자동 교정 실행 (교정 버튼 제거)
+    - btn_correct 버튼 UI에서 삭제
+    - btn_transcribe: 전사 완료 후 .then()으로 handle_correct 자동 연결
+    - handle_pipeline: 전사→교정→요약 순서로 변경 (교정본으로 요약)
+    - handle_summarize: correction_output 우선 사용, 없으면 transcript_output 사용
+
+
 v1.0.19 (2026-04-24)
   - [개선] 전사 진행률 실시간 반영 (0.1% 단위)
     - transcriber.py: on_progress(pct, msg) 시그니처로 변경
