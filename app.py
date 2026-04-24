@@ -786,7 +786,7 @@ def handle_mic_test(device_idx):
         return gr.update(value="마이크 테스트"), msg
     else:
         if device_idx == _WASAPI_AUTO:
-            msg = recorder.start_test(wasapi_loopback=True)
+            msg = recorder.start_test(mixed=True)
         elif device_idx == _MIX_AUTO:
             rdp_idx, _ = recorder.find_rdp_device()
             if rdp_idx is None:

@@ -174,7 +174,7 @@ class AudioRecorder:
             speaker = sc.default_speaker()
             loopback_mic = sc.get_microphone(speaker.id, include_loopback=True)
             with loopback_mic.recorder(samplerate=self._actual_samplerate, channels=CHANNELS) as rec:
-                while self.recording:
+                while self.recording or self.testing:
                     data = rec.record(numframes=CHUNK)
                     if self.paused:
                         continue
@@ -287,12 +287,54 @@ class AudioRecorder:
     # 마이크 테스트 (저장 없이 레벨만 측정)
     # ------------------------------------------------------------------
 
-    def start_test(self, device_override=None, wasapi_loopback: bool = False) -> str:
+    def start_test(self, device_override=None, wasapi_loopback: bool = False, mixed: bool = False) -> str:
         """마이크 테스트 시작. 오디오를 저장하지 않고 레벨만 측정."""
         if self.recording:
             return "녹음 중에는 테스트할 수 없습니다."
         if self.testing:
             return self.stop_test()
+
+        if mixed:
+            try:
+                device, dev_info = self._open_input_stream(device_override)
+                self.audio_data = []
+                self._mix_audio_data = []
+                self._mix_error = None
+                self._is_mixed = True
+                self.testing = True
+
+                def _mix_test_callback(indata: np.ndarray, frames: int, time, status):
+                    if self.testing:
+                        with self.lock:
+                            self.audio_data.append(np.clip(indata * self.mic_gain, -1.0, 1.0))
+                            if len(self.audio_data) > 20:
+                                self.audio_data.pop(0)
+
+                self.stream = sd.InputStream(
+                    device=device,
+                    channels=CHANNELS,
+                    samplerate=self._actual_samplerate,
+                    callback=_mix_test_callback,
+                    dtype="float32",
+                )
+                self.stream.start()
+                self._mix_thread = threading.Thread(target=self._run_wasapi_mix, daemon=True)
+                self._mix_thread.start()
+                import time as _t; _t.sleep(0.4)
+                if self._mix_error:
+                    self.testing = False
+                    self._is_mixed = False
+                    self.stream.stop(); self.stream.close(); self.stream = None
+                    self._mix_thread.join(timeout=2); self._mix_thread = None
+                    return f"테스트 실패: {self._mix_error}"
+                mic_name = dev_info.get("name", "기본 마이크")
+                speaker_name = self.get_wasapi_speaker_name() or "기본 출력"
+                return f"테스트 중 — 🎙 {mic_name} + 🎧 {speaker_name}"
+            except Exception as exc:
+                self.testing = False
+                self._is_mixed = False
+                self.stream = None
+                return f"테스트 실패: {exc}"
 
         if wasapi_loopback:
             self.audio_data = []
@@ -347,7 +389,12 @@ class AudioRecorder:
         if self._wasapi_thread:
             self._wasapi_thread.join(timeout=2)
             self._wasapi_thread = None
+        if self._mix_thread:
+            self._mix_thread.join(timeout=2)
+            self._mix_thread = None
         self.audio_data = []
+        self._mix_audio_data = []
+        self._is_mixed = False
         return "마이크 테스트 종료"
 
     # ------------------------------------------------------------------
