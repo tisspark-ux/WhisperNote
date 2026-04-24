@@ -119,13 +119,15 @@ class AudioRecorder:
             self._wasapi_error = "soundcard 미설치. install.bat 재실행 또는 pip install soundcard"
             return
         import sys as _sys
-        _com = _sys.platform == "win32"
-        if _com:
+        _com = False
+        if _sys.platform == "win32":
             try:
                 import ctypes as _ct
-                _ct.windll.ole32.CoInitialize(None)
+                # S_OK(0) or S_FALSE(1) = success; negative = failure
+                hr = _ct.windll.ole32.CoInitialize(None)
+                _com = hr >= 0
             except Exception:
-                _com = False
+                pass
         CHUNK = 1024
         try:
             speaker = sc.default_speaker()
@@ -159,13 +161,14 @@ class AudioRecorder:
             self._mix_error = "soundcard 미설치"
             return
         import sys as _sys
-        _com = _sys.platform == "win32"
-        if _com:
+        _com = False
+        if _sys.platform == "win32":
             try:
                 import ctypes as _ct
-                _ct.windll.ole32.CoInitialize(None)
+                hr = _ct.windll.ole32.CoInitialize(None)
+                _com = hr >= 0
             except Exception:
-                _com = False
+                pass
         CHUNK = 1024
         try:
             speaker = sc.default_speaker()
