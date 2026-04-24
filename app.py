@@ -634,11 +634,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id, chunk_
     out_dir = _wav_dir(cat_data_val, l1_id, l2_id, l3_id)
     chunk_min = int(chunk_minutes or 0)
     if device_idx == _WASAPI_AUTO:
-        file_path, msg = recorder.start(wasapi_loopback=True, output_dir=out_dir, chunk_minutes=chunk_min)
-        if file_path is None:
-            loopback_idx, _ = recorder.find_loopback_device()
-            if loopback_idx is not None:
-                file_path, msg = recorder.start(device_override=loopback_idx, output_dir=out_dir, chunk_minutes=chunk_min)
+        file_path, msg = recorder.start(device_override=None, mixed=True, output_dir=out_dir, chunk_minutes=chunk_min)
     elif device_idx == _MIX_AUTO:
         rdp_idx, _ = recorder.find_rdp_device()
         if rdp_idx is None:
@@ -790,7 +786,7 @@ def handle_mic_test(device_idx):
         return gr.update(value="마이크 테스트"), msg
     else:
         if device_idx == _WASAPI_AUTO:
-            msg = recorder.start_test(wasapi_loopback=True)
+            msg = recorder.start_test(device_override=None)
         elif device_idx == _MIX_AUTO:
             rdp_idx, _ = recorder.find_rdp_device()
             if rdp_idx is None:
@@ -1166,7 +1162,7 @@ def get_input_device_choices():
     import sounddevice as sd
     choices = [
         ("(PC) 🎙 대면회의", -1),
-        ("(PC) 🎧 원격회의", _WASAPI_AUTO),
+        ("(PC) 🎙+🎧 원격회의", _WASAPI_AUTO),
         ("(원격) 🖥 대면회의", _REMOTE_AUTO),
         ("(원격) 🎙+🎧 원격회의", _MIX_AUTO),
     ]
@@ -1601,9 +1597,8 @@ python app.py
 
     # 입력 장치 변경 → 슬라이더 표시/숨김
     def _update_gain_sliders(device_idx):
-        mic_vis = device_idx not in (_WASAPI_AUTO,)
         sys_vis = device_idx in (_WASAPI_AUTO, _MIX_AUTO)
-        return gr.update(visible=mic_vis), gr.update(visible=sys_vis)
+        return gr.update(visible=True), gr.update(visible=sys_vis)
 
     input_device.change(
         _update_gain_sliders,
