@@ -704,7 +704,7 @@ def handle_pause_resume():
         return gr.update(value="▶ 재개"), msg
 
 
-def handle_chunk_poll():
+def handle_chunk_poll(current_view: str):
     """2초마다 청크/전사/요약 상태를 폴링해 UI 갱신. 타이머 active 자체 제어."""
     r_status     = gr.update()
     r_file       = gr.update()
@@ -713,6 +713,9 @@ def handle_chunk_poll():
     r_correction = gr.update()
     r_cfile      = gr.update()
     r_pipeline   = gr.update()
+    r_display    = gr.update()
+    r_view       = gr.update()
+    r_dfile      = gr.update()
 
     # 청크 알림
     msg = recorder.pop_chunk_message()
@@ -727,7 +730,7 @@ def handle_chunk_poll():
         auto_worker.enqueue(job)
         job = recorder.pop_pending_transcription()
 
-    # 녹음 종료 + recorder 큐 소진 + worker 아직 안 끝난 경우: 자동 요약 예약
+    # 녹음 종료 + recorder 큐 소진 + worker 아직 안 끝난 경우: 자동 교정 예약
     if (
         not recorder.recording
         and auto_worker._session_active
@@ -745,10 +748,16 @@ def handle_chunk_poll():
             r_transcript = gr.update(value=result["transcript"])
             r_tfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
+            if current_view == "원문":
+                r_display = gr.update(value=result["transcript"])
+                r_dfile   = gr.update(value=result["file_path"])
         elif result.get("type") == "correction":
             r_correction = gr.update(value=result["correction"])
             r_cfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
+            r_display    = gr.update(value=result["correction"])
+            r_view       = gr.update(value="교정")
+            r_dfile      = gr.update(value=result["file_path"])
         result = auto_worker.pop_result()
 
     # 대기열 현황 텍스트 갱신
@@ -758,7 +767,7 @@ def handle_chunk_poll():
     still_busy = recorder.recording or auto_worker.is_busy()
     r_timer = gr.update(active=still_busy)
 
-    return r_status, r_file, r_transcript, r_tfile, r_correction, r_cfile, r_pipeline, r_queue, r_timer
+    return r_status, r_file, r_transcript, r_tfile, r_correction, r_cfile, r_pipeline, r_queue, r_timer, r_display, r_view, r_dfile
 
 
 def handle_mic_test(device_idx):
@@ -977,9 +986,10 @@ def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
 
 
 def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, l2_id, l3_id, progress=gr.Progress()):
+    _no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
-        return "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요."
+        return "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", *_no
     try:
         progress(0.1, desc="전사 시작...")
         transcript, out_file = transcriber.transcribe(
@@ -988,9 +998,11 @@ def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, 
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="전사 완료!")
-        return transcript, out_file, "", f"완료 — {Path(out_file).name}"
+        return (transcript, out_file, "", f"완료 — {Path(out_file).name}",
+                gr.update(value=transcript), gr.update(value=out_file),
+                gr.update(value="원문"), gr.update(value=""), gr.update(value=""))
     except Exception as exc:
-        return "", "", "", f"전사 실패: {exc}"
+        return "", "", "", f"전사 실패: {exc}", *_no
 
 
 def handle_correct(
@@ -1002,8 +1014,9 @@ def handle_correct(
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
+    _no = (gr.update(), gr.update(), gr.update())
     if not transcript:
-        return "", "", "먼저 전사를 실행하세요."
+        return "", "", "먼저 전사를 실행하세요.", *_no
     if merged_stem:
         audio_stem = merged_stem
     else:
@@ -1016,14 +1029,16 @@ def handle_correct(
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="교정 완료!")
-        return corrected, out_file, f"완료 — {Path(out_file).name}"
+        return (corrected, out_file, f"완료 — {Path(out_file).name}",
+                gr.update(value=corrected), gr.update(value="교정"), gr.update(value=out_file))
     except Exception as exc:
-        return "", "", f"교정 실패: {exc}"
+        return "", "", f"교정 실패: {exc}", *_no
 
 
 def handle_load_transcripts(files):
+    _no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     if not files:
-        return "", "", "전사 파일을 선택하세요."
+        return "", "", "전사 파일을 선택하세요.", *_no
     sorted_files = sorted(files, key=lambda f: Path(f).name)
     parts = []
     for f in sorted_files:
@@ -1031,13 +1046,13 @@ def handle_load_transcripts(files):
     merged = "\n\n".join(parts)
     first_stem = Path(sorted_files[0]).stem.replace("_transcript", "")
     merged_stem = f"{first_stem}_merged"
-    return merged, merged_stem, f"전사 파일 {len(sorted_files)}개 병합 완료"
+    return (merged, merged_stem, f"전사 파일 {len(sorted_files)}개 병합 완료",
+            gr.update(value=merged), gr.update(value=""), gr.update(value="원문"),
+            gr.update(value=""), gr.update(value=""))
 
 
 def handle_summarize(
-    transcript: str,
-    correction: str,
-    transcript_source: str,
+    display_text: str,
     recorded: str,
     uploaded: str | None,
     model_name: str,
@@ -1046,7 +1061,7 @@ def handle_summarize(
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
-    text = correction if transcript_source == "교정본" and correction else transcript
+    text = display_text
     if not text:
         return "", "", "먼저 전사를 실행하세요."
     if merged_stem:
@@ -1075,9 +1090,10 @@ def handle_pipeline(
     cat_data_val, l1_id, l2_id, l3_id,
     progress=gr.Progress(),
 ):
+    _disp_no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
-        return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", ""
+        return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", "", *_disp_no
     out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
     try:
         progress(0.05, desc="전사 시작...")
@@ -1087,7 +1103,7 @@ def handle_pipeline(
             output_dir=out_dir,
         )
         if not transcript:
-            return "", t_file, "", "", "전사 결과가 비어 있습니다."
+            return "", t_file, "", "", "전사 결과가 비어 있습니다.", "", *_disp_no
         progress(0.7, desc="요약 중...")
         summary, s_file = summarizer.summarize(
             transcript, Path(audio).stem, model=model_name, output_dir=out_dir,
@@ -1099,9 +1115,11 @@ def handle_pipeline(
             summary,   s_file,
             f"완료 — {Path(t_file).name} / {Path(s_file).name}",
             "",
+            gr.update(value=transcript), gr.update(value=t_file),
+            gr.update(value="원문"), gr.update(value=""), gr.update(value=""),
         )
     except Exception as exc:
-        return "", "", "", "", f"실패: {exc}", ""
+        return "", "", "", "", f"실패: {exc}", "", *_disp_no
 
 
 def refresh_ollama_models():
@@ -1402,8 +1420,17 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         visible=True,
                     )
 
-                    gr.HTML('<div class="wn-label" style="margin-top:.8rem">전사 결과</div>')
-                    transcript_output = gr.Textbox(
+                    with gr.Row(elem_classes="wn-view-row"):
+                        gr.HTML('<div class="wn-label" style="margin-top:.8rem;flex:1">전사 결과</div>')
+                        view_radio = gr.Radio(
+                            choices=["원문", "교정"],
+                            value="원문",
+                            label=None,
+                            show_label=False,
+                            interactive=True,
+                            elem_classes="wn-view-radio",
+                        )
+                    text_display = gr.Textbox(
                         lines=13,
                         interactive=False,
                         show_label=False,
@@ -1412,41 +1439,22 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_classes="wn-result",
                     )
                     with gr.Row():
-                        transcript_file_path = gr.Textbox(
+                        display_file_path = gr.Textbox(
                             interactive=False,
                             show_label=False,
                             lines=1,
                             elem_classes="wn-filepath",
                             scale=5,
                         )
-                        btn_open_transcript_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
+                        btn_open_display_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
-                    gr.HTML('<hr class="wn-divider"><div class="wn-label">교정 결과</div>')
-                    correction_output = gr.Textbox(
-                        lines=13,
-                        interactive=False,
-                        show_label=False,
-                        show_copy_button=True,
-                        placeholder="교정 시작 버튼을 누르면 교정된 전사문이 여기에 표시됩니다.",
-                        elem_classes="wn-result",
-                    )
-                    with gr.Row():
-                        corrected_file_path = gr.Textbox(
-                            interactive=False,
-                            show_label=False,
-                            lines=1,
-                            elem_classes="wn-filepath",
-                            scale=5,
-                        )
-                        btn_open_corrected_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
+                    # 내부 상태 저장용 (숨김)
+                    transcript_output    = gr.Textbox(visible=False)
+                    transcript_file_path = gr.Textbox(visible=False)
+                    correction_output    = gr.Textbox(visible=False)
+                    corrected_file_path  = gr.Textbox(visible=False)
 
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">요약 결과</div>')
-                    transcript_source_radio = gr.Radio(
-                        choices=["원본", "교정본"],
-                        value="원본",
-                        label="요약 대상 전사문",
-                        interactive=True,
-                    )
                     summary_output = gr.Textbox(
                         lines=13,
                         interactive=False,
@@ -1601,40 +1609,57 @@ python app.py
         correction_output, corrected_file_path,
         pipeline_status, queue_status,
         chunk_poll_timer,
+        text_display, view_radio, display_file_path,
     ]
-    chunk_poll_timer.tick(handle_chunk_poll, outputs=_poll_outputs)
+    chunk_poll_timer.tick(handle_chunk_poll, inputs=[view_radio], outputs=_poll_outputs)
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
-    btn_open_transcript_folder.click(handle_open_folder, inputs=[transcript_file_path])
-    btn_open_corrected_folder.click(handle_open_folder, inputs=[corrected_file_path])
+    btn_open_display_folder.click(handle_open_folder, inputs=[display_file_path])
     btn_open_summary_folder.click(handle_open_folder, inputs=[summary_file_path])
+
+    # view_radio 전환: 숨겨진 상태에서 표시 텍스트/파일 경로 갱신
+    def switch_view(choice, transcript, correction, t_file, c_file):
+        if choice == "교정":
+            return gr.update(value=correction), gr.update(value=c_file)
+        return gr.update(value=transcript), gr.update(value=t_file)
+
+    view_radio.change(
+        switch_view,
+        inputs=[view_radio, transcript_output, correction_output, transcript_file_path, corrected_file_path],
+        outputs=[text_display, display_file_path],
+    )
 
     # 전사/교정/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
     btn_load_transcripts.click(
         handle_load_transcripts,
         inputs=[transcript_files],
-        outputs=[transcript_output, merged_stem_state, pipeline_status],
+        outputs=[transcript_output, merged_stem_state, pipeline_status,
+                 text_display, display_file_path, view_radio, correction_output, corrected_file_path],
     )
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
-        outputs=[transcript_output, transcript_file_path, merged_stem_state, pipeline_status],
+        outputs=[transcript_output, transcript_file_path, merged_stem_state, pipeline_status,
+                 text_display, display_file_path, view_radio, correction_output, corrected_file_path],
     )
     btn_correct.click(
         handle_correct,
         inputs=[transcript_output, recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
-        outputs=[correction_output, corrected_file_path, pipeline_status],
+        outputs=[correction_output, corrected_file_path, pipeline_status,
+                 text_display, view_radio, display_file_path],
     )
     btn_pipeline.click(
         handle_pipeline,
         inputs=[recorded_file, uploaded_file, ollama_model, summary_type] + _cat_inputs,
-        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path, pipeline_status, merged_stem_state],
+        outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path,
+                 pipeline_status, merged_stem_state,
+                 text_display, display_file_path, view_radio, correction_output, corrected_file_path],
     )
     btn_summarize.click(
         handle_summarize,
-        inputs=[transcript_output, correction_output, transcript_source_radio,
+        inputs=[text_display,
                 recorded_file, uploaded_file, ollama_model, merged_stem_state, summary_type] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
