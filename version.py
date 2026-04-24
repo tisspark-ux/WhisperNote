@@ -1,6 +1,13 @@
-__version__ = "1.0.25"
+__version__ = "1.0.26"
 
 CHANGELOG = """
+v1.0.26 (2026-04-24)
+  - [수정] transcriber.py: Whisper 반복 환각 방지
+    - condition_on_previous_text: True -> False (무음 구간 반복 생성 차단)
+    - compression_ratio_threshold: 2.4 -> 1.8 (반복 텍스트 더 공격적으로 필터)
+    - no_speech_threshold: 0.6 -> 0.5 (무음 판별 민감도 상향)
+
+
 v1.0.25 (2026-04-24)
   - [수정] (원격) 원격회의 마이크 테스트: RDP 마이크만 -> RDP+시스템 혼합 테스트
 
