@@ -1007,7 +1007,7 @@ def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, 
         progress(0.1, desc="전사 시작...")
         transcript, out_file = transcriber.transcribe(
             audio,
-            on_progress=lambda m: progress(0.5, desc=m),
+            on_progress=lambda pct, m: progress(pct, desc=m),
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
         )
         progress(1.0, desc="전사 완료!")
@@ -1112,7 +1112,7 @@ def handle_pipeline(
         progress(0.05, desc="전사 시작...")
         transcript, t_file = transcriber.transcribe(
             audio,
-            on_progress=lambda m: progress(0.35, desc=m),
+            on_progress=lambda pct, m: progress(pct * 0.75, desc=m),
             output_dir=out_dir,
         )
         if not transcript:

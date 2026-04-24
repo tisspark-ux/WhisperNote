@@ -161,32 +161,36 @@ class Transcriber:
     def transcribe(
         self,
         audio_path: str,
-        on_progress: Callable[[str], None] | None = None,
+        on_progress: Callable[[float, str], None] | None = None,
         output_dir=None,
     ) -> tuple[str, str]:
         """
         WhisperX 로 오디오 파일을 전사한다.
         ENABLE_DIARIZATION=True 이면 화자 분리까지 수행한다.
 
+        on_progress(pct: float, msg: str) — pct 는 0.0~1.0
+          0.00–0.05 : 모델 로딩
+          0.05–0.75 : 전사 (오디오 진행률 기반, 0.1% 단위)
+          0.75–0.88 : 타임스탬프 정렬
+          0.88–0.97 : 화자 분리
+          0.97–1.00 : 저장/완료
+
         Returns
         -------
         transcript : str
-            타임스탬프 + (화자 레이블)이 포함된 전사 텍스트
         output_file : str
-            저장된 TXT 파일 경로
         """
-        def _progress(msg: str):
+        def _progress(pct: float, msg: str):
             print(f"[전사] {msg}", flush=True)
             if on_progress:
-                on_progress(msg)
+                on_progress(pct, msg)
 
         print(f"[전사] 시작: {Path(audio_path).name}", flush=True)
 
-        _progress("Whisper 모델 로딩 중...")
+        _progress(0.0, "Whisper 모델 로딩 중...")
         self._load_model()
+        _progress(0.05, "모델 로딩 완료 — 전사 시작...")
 
-        _progress("오디오 전사 중... (파일 크기/CPU 성능에 따라 수 분~수십 분 소요)")
-        # faster_whisper: 파일 경로 직접 전달, generator 반환
         fw_segments, fw_info = self._model.transcribe(
             audio_path,
             language=WHISPER_LANGUAGE,
@@ -199,30 +203,42 @@ class Transcriber:
             compression_ratio_threshold=2.4,
             log_prob_threshold=-1.0,
         )
-        print(f"[전사] 오디오 길이: {fw_info.duration:.1f}초, 감지 언어: {fw_info.language} (신뢰도 {fw_info.language_probability:.0%})", flush=True)
+        dur = fw_info.duration or 1.0
+        print(
+            f"[전사] 오디오 길이: {dur:.1f}초, 감지 언어: {fw_info.language}"
+            f" (신뢰도 {fw_info.language_probability:.0%})",
+            flush=True,
+        )
 
+        # 전사 구간: overall 0.05 → 0.75 (= 70%p), 오디오 진행률 0.1% 단위
+        _TRANS_START, _TRANS_END = 0.05, 0.75
         segments = []
-        for i, s in enumerate(fw_segments):
+        last_pct10 = -1
+        for s in fw_segments:
             segments.append({"start": s.start, "end": s.end, "text": s.text})
-            if i % 20 == 0 and i > 0:
-                print(f"[전사] 세그먼트 {i}개 처리 중... ({s.end:.0f}s / {fw_info.duration:.0f}s)", flush=True)
+            audio_pct = min(s.end / dur, 1.0)
+            pct10 = int(audio_pct * 1000)
+            if pct10 != last_pct10:
+                overall = _TRANS_START + (_TRANS_END - _TRANS_START) * audio_pct
+                msg = f"전사 중... {audio_pct * 100:.1f}%  ({s.end:.0f}s / {dur:.0f}s)"
+                if on_progress:
+                    on_progress(overall, msg)
+                if pct10 % 50 == 0:  # 터미널은 5% 단위로만 출력
+                    print(f"[전사] {msg}", flush=True)
+                last_pct10 = pct10
 
         print(f"[전사] 세그먼트 {len(segments)}개 완료", flush=True)
 
         # 정렬(Alignment) — 실패 시 원본 세그먼트 유지
         try:
-            _progress("타임스탬프 정렬 중...")
+            _progress(0.75, "타임스탬프 정렬 중...")
             audio = whisperx.load_audio(audio_path)
             align_model, metadata = whisperx.load_align_model(
                 language_code=WHISPER_LANGUAGE,
                 device=self.device,
             )
             aligned = whisperx.align(
-                segments,
-                align_model,
-                metadata,
-                audio,
-                self.device,
+                segments, align_model, metadata, audio, self.device,
                 return_char_alignments=False,
             )
             segments = aligned.get("segments", segments)
@@ -234,26 +250,25 @@ class Transcriber:
         diarization_ok = False
         if ENABLE_DIARIZATION and segments:
             try:
-                _progress("화자 분리 중...")
+                _progress(0.88, "화자 분리 중...")
                 import diarizer
                 segments = diarizer.diarize(audio_path, segments, num_speakers=NUM_SPEAKERS)
                 diarization_ok = True
                 print("[전사] 화자 분리 완료", flush=True)
             except Exception as exc:
                 print(f"[전사] 화자 분리 실패: {exc}", flush=True)
-                _progress(f"화자 분리 실패 (전사만 저장): {exc}")
+                _progress(0.88, f"화자 분리 실패 (전사만 저장): {exc}")
 
         # 세그먼트 → 텍스트 변환
+        _progress(0.97, "저장 중...")
         lines: list[str] = []
         for seg in segments:
             start   = seg.get("start", 0.0)
             end     = seg.get("end",   0.0)
             text    = seg.get("text",  "").strip()
             speaker = seg.get("speaker", "")
-
             if not text:
                 continue
-
             if diarization_ok and speaker:
                 lines.append(f"[{speaker}] [{start:.1f}s - {end:.1f}s] {text}")
             else:
@@ -261,7 +276,6 @@ class Transcriber:
 
         transcript = "\n".join(lines)
 
-        # TXT 저장
         out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
         stem = Path(audio_path).stem
@@ -269,5 +283,5 @@ class Transcriber:
         output_file.write_text(transcript, encoding="utf-8")
 
         print(f"[전사] 저장 완료: {output_file}", flush=True)
-        _progress(f"전사 완료: {output_file.name}")
+        _progress(1.0, f"전사 완료: {output_file.name}")
         return transcript, str(output_file)
