@@ -118,6 +118,14 @@ class AudioRecorder:
         except ImportError:
             self._wasapi_error = "soundcard 미설치. install.bat 재실행 또는 pip install soundcard"
             return
+        import sys as _sys
+        _com = _sys.platform == "win32"
+        if _com:
+            try:
+                import ctypes as _ct
+                _ct.windll.ole32.CoInitialize(None)
+            except Exception:
+                _com = False
         CHUNK = 1024
         try:
             speaker = sc.default_speaker()
@@ -135,6 +143,13 @@ class AudioRecorder:
             self._wasapi_error = str(exc)
             self.recording = False
             self.testing = False
+        finally:
+            if _com:
+                try:
+                    import ctypes as _ct
+                    _ct.windll.ole32.CoUninitialize()
+                except Exception:
+                    pass
 
     def _run_wasapi_mix(self):
         """혼합 녹음 시 WASAPI 루프백 스레드 (_mix_audio_data에 저장)."""
@@ -143,6 +158,14 @@ class AudioRecorder:
         except ImportError:
             self._mix_error = "soundcard 미설치"
             return
+        import sys as _sys
+        _com = _sys.platform == "win32"
+        if _com:
+            try:
+                import ctypes as _ct
+                _ct.windll.ole32.CoInitialize(None)
+            except Exception:
+                _com = False
         CHUNK = 1024
         try:
             speaker = sc.default_speaker()
@@ -157,6 +180,13 @@ class AudioRecorder:
         except Exception as exc:
             self._mix_error = str(exc)
             self.recording = False
+        finally:
+            if _com:
+                try:
+                    import ctypes as _ct
+                    _ct.windll.ole32.CoUninitialize()
+                except Exception:
+                    pass
 
     def find_rdp_device(self) -> tuple[int, str] | tuple[None, None]:
         """RDP 원격 오디오 입력 장치 검색. 입력 채널 있는 장치 우선 반환."""
