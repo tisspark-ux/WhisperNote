@@ -1,9 +1,13 @@
 @echo off
 
-rem Disable Quick Edit Mode immediately - prevents window freeze on mouse click
+rem Disable Quick Edit Mode immediately in THIS window (prevents freeze on click)
 python                    -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
 py                        -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
 .venv\Scripts\python.exe  -c "import ctypes;k=ctypes.windll.kernel32;h=k.GetStdHandle(-10);m=ctypes.c_ulong();k.GetConsoleMode(h,ctypes.byref(m));k.SetConsoleMode(h,(m.value&~0x40)|0x80)" >nul 2>&1
+
+rem Set QuickEdit=0 in registry for the WhisperNote console window BEFORE creating it.
+rem Windows reads HKCU\Console\<title> at window creation time, so this must run first.
+.venv\Scripts\python.exe -c "import winreg as r;k=r.CreateKey(r.HKEY_CURRENT_USER,'Console\\WhisperNote');r.SetValueEx(k,'QuickEdit',0,r.REG_DWORD,0);r.CloseKey(k)" >nul 2>&1
 
 if exist ".venv\Scripts\activate.bat" (
     call .venv\Scripts\activate.bat
