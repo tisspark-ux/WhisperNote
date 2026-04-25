@@ -1,6 +1,16 @@
-__version__ = "1.0.28"
+__version__ = "1.0.29"
 
 CHANGELOG = """
+v1.0.29 (2026-04-25)
+  - [개선] 요약/교정 프롬프트를 prompts/ 폴더 파일로 관리
+    - prompts.py 신규: get_summary_prompt(), get_correction_prompt(), list_summary_types()
+    - prompts/summary/{회의,면담,보고서 리뷰}.txt — 요약 프롬프트
+    - prompts/correction/교정.txt — 교정 프롬프트
+    - 앱 최초 실행 시 해당 파일 자동 생성, 직접 편집 후 즉시 반영
+    - config.py: SUMMARY_PROMPT_TEMPLATE, SUMMARY_PROMPTS, CORRECTION_PROMPT_TEMPLATE 제거
+    - summarizer.py: prompts 모듈로 import 변경
+
+
 v1.0.28 (2026-04-25)
   - [기능] 자동 교정 후 자동 요약 활성화 (전사→교정→요약 완전 자동화)
     - AutoTranscriptionWorker._do_summarize() 주석 해제

@@ -3,8 +3,10 @@ from pathlib import Path
 from config import BASE_DIR
 
 PROMPTS_DIR = BASE_DIR / "prompts"
+SUMMARY_DIR = PROMPTS_DIR / "summary"
+CORRECTION_DIR = PROMPTS_DIR / "correction"
 
-_DEFAULTS: dict[str, str] = {
+_SUMMARY_DEFAULTS: dict[str, str] = {
     "회의": """다음은 회의 전사문입니다. 아래 형식으로 요약해주세요.
 
 ## 핵심 내용
@@ -50,7 +52,9 @@ _DEFAULTS: dict[str, str] = {
 전사문:
 {transcript}
 """,
-    "교정": """너는 STT 전사 오류 교정기다. 맞춤법·단어 수준의 오류만 수정한다.
+}
+
+_CORRECTION_DEFAULT = """너는 STT 전사 오류 교정기다. 맞춤법·단어 수준의 오류만 수정한다.
 
 규칙:
 1. 각 줄의 형식([화자] [시작s - 끝s] 텍스트)을 절대 변경하지 말 것
@@ -64,33 +68,38 @@ _DEFAULTS: dict[str, str] = {
 ---
 전사문:
 {transcript}
-""",
-}
+"""
 
-PROMPTS_DIR.mkdir(exist_ok=True)
-for _name, _content in _DEFAULTS.items():
-    _f = PROMPTS_DIR / f"{_name}.txt"
+SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
+CORRECTION_DIR.mkdir(parents=True, exist_ok=True)
+
+for _name, _content in _SUMMARY_DEFAULTS.items():
+    _f = SUMMARY_DIR / f"{_name}.txt"
     if not _f.exists():
         _f.write_text(_content, encoding="utf-8")
+
+_cf = CORRECTION_DIR / "교정.txt"
+if not _cf.exists():
+    _cf.write_text(_CORRECTION_DEFAULT, encoding="utf-8")
 
 
 def get_summary_prompt(summary_type: str) -> str:
     """요약 프롬프트 파일 로드. 파일 없으면 기본값 반환."""
-    path = PROMPTS_DIR / f"{summary_type}.txt"
+    path = SUMMARY_DIR / f"{summary_type}.txt"
     if path.exists():
         return path.read_text(encoding="utf-8")
-    return _DEFAULTS.get(summary_type, _DEFAULTS["회의"])
+    return _SUMMARY_DEFAULTS.get(summary_type, next(iter(_SUMMARY_DEFAULTS.values())))
 
 
 def get_correction_prompt() -> str:
     """교정 프롬프트 파일 로드. 파일 없으면 기본값 반환."""
-    path = PROMPTS_DIR / "교정.txt"
+    path = CORRECTION_DIR / "교정.txt"
     if path.exists():
         return path.read_text(encoding="utf-8")
-    return _DEFAULTS["교정"]
+    return _CORRECTION_DEFAULT
 
 
 def list_summary_types() -> list[str]:
-    """prompts/ 폴더의 요약 유형 목록 반환 (교정 제외, 이름순)."""
-    types = sorted(p.stem for p in PROMPTS_DIR.glob("*.txt") if p.stem != "교정")
-    return types if types else [k for k in _DEFAULTS if k != "교정"]
+    """prompts/summary/ 폴더의 요약 유형 목록 반환 (이름순)."""
+    types = sorted(p.stem for p in SUMMARY_DIR.glob("*.txt"))
+    return types if types else list(_SUMMARY_DEFAULTS.keys())
