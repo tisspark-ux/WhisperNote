@@ -626,6 +626,13 @@ body, .gradio-container {
 /* 설정 버튼 */
 #btn-cat-settings { background: #161b27 !important; border: 1px solid #2d3348 !important; border-radius: 8px !important; color: #6b7280 !important; height: 36px !important; min-width: 36px !important; }
 #btn-cat-settings:hover { border-color: #818cf8 !important; color: #818cf8 !important; }
+
+/* ── 슬라이더 숫자 입력칸 너비 축소 ── */
+.gradio-slider input[type="number"] {
+    width: 48px !important;
+    min-width: 0 !important;
+    padding: 0 4px !important;
+}
 """
 
 # ---------------------------------------------------------------------------
