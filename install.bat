@@ -103,8 +103,17 @@ if errorlevel 1 (
     echo   [INFO] Ollama not found. Install from https://ollama.com
     echo   Then run: ollama pull exaone3.5:latest
 ) else (
+    echo   Starting Ollama server for model download...
+    start /b ollama serve >nul 2>&1
+    timeout /t 3 /nobreak >nul
     echo   Downloading EXAONE 3.5 model (first time only)...
     ollama pull exaone3.5:latest
+    if errorlevel 1 (
+        echo   [WARN] Model download failed. Run manually after install:
+        echo         ollama pull exaone3.5:latest
+    ) else (
+        echo   EXAONE 3.5 model ready.
+    )
 )
 
 echo.
