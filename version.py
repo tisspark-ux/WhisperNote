@@ -1,6 +1,12 @@
-__version__ = "1.0.30"
+__version__ = "1.0.31"
 
 CHANGELOG = """
+v1.0.31 (2026-04-25)
+  - [수정] app.py: import prompts 추가, summary_type 드롭다운 동적 로드
+    - prompts.list_summary_types()로 choices 설정 (prompts/summary/ 폴더 기반)
+    - demo.load에도 동적 갱신 추가
+
+
 v1.0.30 (2026-04-25)
   - [수정] gr.HTML scale 파라미터 제거 (Gradio 4.x 미지원)
     - level_display, timer_display를 gr.Column으로 감싸 비율 조정
