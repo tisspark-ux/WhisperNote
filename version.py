@@ -1,6 +1,11 @@
-__version__ = "1.0.29"
+__version__ = "1.0.30"
 
 CHANGELOG = """
+v1.0.30 (2026-04-25)
+  - [수정] gr.HTML scale 파라미터 제거 (Gradio 4.x 미지원)
+    - level_display, timer_display를 gr.Column으로 감싸 비율 조정
+
+
 v1.0.29 (2026-04-25)
   - [개선] 요약/교정 프롬프트를 prompts/ 폴더 파일로 관리
     - prompts.py 신규: get_summary_prompt(), get_correction_prompt(), list_summary_types()
