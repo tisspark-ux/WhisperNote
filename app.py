@@ -197,6 +197,7 @@ class AutoTranscriptionWorker:
         self._pending_labels: list = []
         self._session_active: bool = False
         self._finalize_triggered: bool = False
+        self._corrected_path: Path | None = None
 
     # ── 세션 초기화 ──────────────────────────────────────────
     def reset(self, combined_path: Path | None, out_dir: Path | None,
@@ -205,6 +206,7 @@ class AutoTranscriptionWorker:
         self._out_dir = out_dir
         self._model_name = model_name
         self._summary_type = summary_type
+        self._corrected_path = None
         with self._lock:
             self._current_label = None
             self._pending_labels = []
@@ -214,7 +216,7 @@ class AutoTranscriptionWorker:
     # ── 대기열 관리 ──────────────────────────────────────────
     def _make_label(self, job: dict) -> str:
         if job.get("type") == "finalize":
-            return "자동 교정"
+            return "자동 교정 + 요약"
         part = job["part_index"]
         start = _fmt_sec(job["start_sec"])
         end = _fmt_sec(job["end_sec"])
@@ -274,6 +276,7 @@ class AutoTranscriptionWorker:
             try:
                 if job.get("type") == "finalize":
                     self._do_correct()
+                    self._do_summarize()
                 else:
                     self._do_transcribe(job)
             except Exception as exc:
@@ -342,6 +345,7 @@ class AutoTranscriptionWorker:
                 model=self._model_name,
                 output_dir=self._out_dir,
             )
+            self._corrected_path = Path(c_file)
             with self._lock:
                 self._results.append({
                     "type": "correction",
@@ -353,29 +357,30 @@ class AutoTranscriptionWorker:
             with self._lock:
                 self._results.append({"error": f"자동 교정 실패: {exc}"})
 
-    # def _do_summarize(self):
-    #     combined = self._combined_path
-    #     if combined is None or not combined.exists():
-    #         return
-    #     transcript_text = combined.read_text(encoding="utf-8").strip()
-    #     if not transcript_text:
-    #         return
-    #     audio_stem = combined.stem.replace("_transcript", "")
-    #     try:
-    #         summary, s_file = summarizer.summarize(
-    #             transcript_text, audio_stem, model=self._model_name,
-    #             output_dir=self._out_dir, summary_type=self._summary_type,
-    #         )
-    #         with self._lock:
-    #             self._results.append({
-    #                 "type": "summary",
-    #                 "summary": summary,
-    #                 "file_path": s_file,
-    #                 "status": f"자동 요약 완료 — {Path(s_file).name}",
-    #             })
-    #     except Exception as exc:
-    #         with self._lock:
-    #             self._results.append({"error": f"자동 요약 실패: {exc}"})
+    def _do_summarize(self):
+        source = (self._corrected_path if self._corrected_path and self._corrected_path.exists()
+                  else self._combined_path)
+        if source is None or not source.exists():
+            return
+        transcript_text = source.read_text(encoding="utf-8").strip()
+        if not transcript_text:
+            return
+        audio_stem = source.stem.replace("_transcript_corrected", "").replace("_transcript", "")
+        try:
+            summary, s_file = summarizer.summarize(
+                transcript_text, audio_stem, model=self._model_name,
+                output_dir=self._out_dir, summary_type=self._summary_type,
+            )
+            with self._lock:
+                self._results.append({
+                    "type": "summary",
+                    "summary": summary,
+                    "file_path": s_file,
+                    "status": f"자동 요약 완료 — {Path(s_file).name}",
+                })
+        except Exception as exc:
+            with self._lock:
+                self._results.append({"error": f"자동 요약 실패: {exc}"})
 
 
 auto_worker = AutoTranscriptionWorker()
@@ -725,6 +730,8 @@ def handle_chunk_poll(current_view: str):
     r_display    = gr.update()
     r_view       = gr.update()
     r_dfile      = gr.update()
+    r_summary    = gr.update()
+    r_sfile      = gr.update()
 
     # 청크 알림
     msg = recorder.pop_chunk_message()
@@ -767,6 +774,10 @@ def handle_chunk_poll(current_view: str):
             r_display    = gr.update(value=result["correction"])
             r_view       = gr.update(value="교정")
             r_dfile      = gr.update(value=result["file_path"])
+        elif result.get("type") == "summary":
+            r_summary  = gr.update(value=result["summary"])
+            r_sfile    = gr.update(value=result["file_path"])
+            r_pipeline = gr.update(value=result["status"])
         result = auto_worker.pop_result()
 
     # 대기열 현황 텍스트 갱신
@@ -776,7 +787,7 @@ def handle_chunk_poll(current_view: str):
     still_busy = recorder.recording or auto_worker.is_busy()
     r_timer = gr.update(active=still_busy)
 
-    return r_status, r_file, r_transcript, r_tfile, r_correction, r_cfile, r_pipeline, r_queue, r_timer, r_display, r_view, r_dfile
+    return r_status, r_file, r_transcript, r_tfile, r_correction, r_cfile, r_pipeline, r_queue, r_timer, r_display, r_view, r_dfile, r_summary, r_sfile
 
 
 def handle_mic_test(device_idx):
@@ -1285,97 +1296,100 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     btn_cat_cancel = gr.Button("취소", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=1, min_width=60)
                 cat_panel_msg = gr.HTML("")
 
-            with gr.Row(equal_height=False):
+            # ── 분류 (전체 너비) ──────────────────────────────────
+            with gr.Column(elem_classes="wn-card"):
+                gr.HTML('<div class="wn-label">분류</div>')
+                with gr.Row():
+                    cat_l1 = gr.Dropdown(label="대분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                    cat_l2 = gr.Dropdown(label="중분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                    cat_l3 = gr.Dropdown(label="소분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
+                    btn_cat_settings = gr.Button("⚙", elem_id="btn-cat-settings", scale=0, min_width=42)
+                cat_path_display = gr.HTML('<div class="wn-cat-path">분류 미선택</div>')
 
-                # ── 왼쪽 컨트롤 패널 ──────────────────────────
-                with gr.Column(scale=1, min_width=300, elem_classes="wn-card"):
-
-                    # 분류
-                    gr.HTML('<div class="wn-label">분류</div>')
-                    with gr.Row():
-                        cat_l1 = gr.Dropdown(label="대분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
-                        cat_l2 = gr.Dropdown(label="중분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
-                        cat_l3 = gr.Dropdown(label="소분류", choices=[], value=None, interactive=True, elem_classes="wn-dropdown", scale=3)
-                        btn_cat_settings = gr.Button("⚙", elem_id="btn-cat-settings", scale=1, min_width=36)
-                    cat_path_display = gr.HTML('<div class="wn-cat-path">분류 미선택</div>')
-
-                    # 녹음
-                    gr.HTML('<hr class="wn-divider"><div class="wn-label">녹음</div>')
+            # ── 녹음 (전체 너비) ──────────────────────────────────
+            with gr.Column(elem_classes="wn-card"):
+                gr.HTML('<div class="wn-label">녹음</div>')
+                with gr.Row():
                     input_device = gr.Dropdown(
                         label="입력 장치",
                         choices=[("(PC) 🎙 대면회의", -1)],
                         value=-1,
                         interactive=True,
                         elem_classes="wn-dropdown",
+                        scale=4,
                     )
-                    with gr.Row():
-                        mic_gain_slider = gr.Slider(
-                            label="🎙 마이크 볼륨",
-                            minimum=0.5, maximum=10.0, value=1.0, step=0.5,
-                            visible=True, scale=1,
-                        )
-                        system_gain_slider = gr.Slider(
-                            label="🎧 시스템 오디오 볼륨",
-                            minimum=0.5, maximum=4.0, value=1.0, step=0.1,
-                            visible=False, scale=1,
-                        )
-                    with gr.Row():
-                        chunk_minutes_input = gr.Number(
-                            label="자동 분할 (분, 0=끄기)",
-                            value=30,
-                            minimum=0,
-                            maximum=180,
-                            step=10,
-                            scale=1,
-                        )
-                    with gr.Row():
-                        btn_start = gr.Button("● 녹음 시작", elem_id="btn-start")
-                        btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False)
-                    with gr.Row():
-                        btn_pause = gr.Button("⏸ 일시정지", elem_classes="wn-btn-secondary", interactive=False, scale=1)
-                        btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
-
+                    mic_gain_slider = gr.Slider(
+                        label="🎙 마이크 볼륨",
+                        minimum=0.5, maximum=10.0, value=1.0, step=0.5,
+                        visible=True, scale=2,
+                    )
+                    system_gain_slider = gr.Slider(
+                        label="🎧 시스템 오디오 볼륨",
+                        minimum=0.5, maximum=4.0, value=1.0, step=0.1,
+                        visible=False, scale=2,
+                    )
+                    chunk_minutes_input = gr.Number(
+                        label="자동 분할 (분, 0=끄기)",
+                        value=30,
+                        minimum=0,
+                        maximum=180,
+                        step=10,
+                        scale=1,
+                    )
+                    summary_type = gr.Dropdown(
+                        label="요약 구분",
+                        choices=["회의", "면담", "보고서 리뷰"],
+                        value="회의",
+                        interactive=True,
+                        elem_classes="wn-dropdown",
+                        scale=2,
+                    )
+                with gr.Row():
+                    btn_start = gr.Button("● 녹음 시작", elem_id="btn-start", scale=2)
+                    btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False, scale=2)
+                    btn_pause = gr.Button("⏸ 일시정지", elem_classes="wn-btn-secondary", interactive=False, scale=1)
+                    btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
+                with gr.Row():
                     level_display = gr.HTML(
                         value='<div id="wn-level-inner" class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
                         elem_id="wn-level-wrap",
+                        scale=4,
                     )
                     timer_display = gr.HTML(
-                        value='<div id="wn-timer-inner" style="color:#4b5563;font-size:1.1rem;font-weight:600;letter-spacing:0.05em;height:28px;display:flex;align-items:center">대기 중</div>',
+                        value='<div id="wn-timer-inner" style="color:#4b5563;font-size:1.1rem;font-weight:600;letter-spacing:0.05em;height:36px;display:flex;align-items:center">대기 중</div>',
                         elem_id="wn-timer-wrap",
+                        scale=1,
                     )
+                with gr.Row():
                     record_status = gr.Textbox(
                         value="대기 중",
                         interactive=False,
                         show_label=False,
                         elem_id="record-status",
                         lines=1,
+                        scale=3,
                     )
-                    with gr.Row():
-                        recorded_file = gr.Textbox(
-                            interactive=False,
-                            show_label=False,
-                            placeholder="녹음 후 파일 경로 자동 표시",
-                            elem_classes="wn-filepath",
-                            lines=1,
-                            scale=5,
-                        )
-                        btn_open_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
+                    recorded_file = gr.Textbox(
+                        interactive=False,
+                        show_label=False,
+                        placeholder="녹음 후 파일 경로 자동 표시",
+                        elem_classes="wn-filepath",
+                        lines=1,
+                        scale=4,
+                    )
+                    btn_open_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
-                    gr.HTML('<hr class="wn-divider"><div class="wn-label">파일 업로드</div>')
+            with gr.Row(equal_height=False):
+
+                # ── 왼쪽 패널 ──────────────────────────
+                with gr.Column(scale=1, min_width=260, elem_classes="wn-card"):
+
+                    gr.HTML('<div class="wn-label">파일 업로드</div>')
                     uploaded_file = gr.Audio(
                         label="",
                         type="filepath",
                         elem_classes="wn-upload",
                     )
-
-                    gr.HTML('<hr class="wn-divider"><div class="wn-label">전사 파일 병합</div>')
-                    transcript_files = gr.File(
-                        label="전사 파일 선택 (여러 개 가능, 이름순 병합)",
-                        file_count="multiple",
-                        file_types=[".txt"],
-                        elem_classes="wn-upload",
-                    )
-                    btn_load_transcripts = gr.Button("병합하여 불러오기", elem_classes="wn-btn-secondary")
 
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">Ollama 모델</div>')
                     with gr.Row():
@@ -1398,13 +1412,6 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     )
 
                     gr.HTML('<hr class="wn-divider">')
-                    summary_type = gr.Dropdown(
-                        label="요약 구분",
-                        choices=["회의", "면담", "보고서 리뷰"],
-                        value="회의",
-                        interactive=True,
-                        elem_classes="wn-dropdown",
-                    )
                     btn_pipeline = gr.Button(
                         "전사 + 요약  →",
                         elem_id="btn-pipeline",
@@ -1629,6 +1636,7 @@ python app.py
         pipeline_status, queue_status,
         chunk_poll_timer,
         text_display, view_radio, display_file_path,
+        summary_output, summary_file_path,
     ]
     chunk_poll_timer.tick(handle_chunk_poll, inputs=[view_radio], outputs=_poll_outputs)
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
@@ -1651,12 +1659,6 @@ python app.py
 
     # 전사/교정/요약/파이프라인 (카테고리 파라미터 추가)
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
-    btn_load_transcripts.click(
-        handle_load_transcripts,
-        inputs=[transcript_files],
-        outputs=[transcript_output, merged_stem_state, pipeline_status,
-                 text_display, display_file_path, view_radio, correction_output, corrected_file_path],
-    )
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
@@ -1667,6 +1669,11 @@ python app.py
         inputs=[transcript_output, recorded_file, uploaded_file, ollama_model, merged_stem_state] + _cat_inputs,
         outputs=[correction_output, corrected_file_path, pipeline_status,
                  text_display, view_radio, display_file_path],
+    ).then(
+        handle_summarize,
+        inputs=[correction_output, transcript_output, recorded_file, uploaded_file,
+                ollama_model, merged_stem_state, summary_type] + _cat_inputs,
+        outputs=[summary_output, summary_file_path, pipeline_status],
     )
     btn_pipeline.click(
         handle_pipeline,

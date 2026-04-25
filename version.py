@@ -1,6 +1,21 @@
-__version__ = "1.0.27"
+__version__ = "1.0.28"
 
 CHANGELOG = """
+v1.0.28 (2026-04-25)
+  - [기능] 자동 교정 후 자동 요약 활성화 (전사→교정→요약 완전 자동화)
+    - AutoTranscriptionWorker._do_summarize() 주석 해제
+    - 교정본이 있으면 교정본으로 요약, 없으면 원본 전사문 사용
+    - handle_chunk_poll: summary 결과 처리 + _poll_outputs 확장
+    - btn_transcribe 체인: .then(handle_correct).then(handle_summarize)
+  - [개선] UI 레이아웃 대폭 개편
+    - 분류(대/중/소) 전체 너비 한 줄로 최상단 배치
+    - 녹음 섹션 전체 너비 카드로 이동
+      - 입력장치·볼륨슬라이더·자동분할·요약구분 한 줄
+      - 버튼 한 줄, 레벨미터+타이머 한 줄, 상태+파일경로 한 줄
+    - 전사 파일 병합 UI 제거 (자동 병합으로 불필요)
+    - 하단 2컬럼: 왼쪽(업로드+Ollama+버튼) / 오른쪽(결과)
+
+
 v1.0.27 (2026-04-24)
   - [개선] 혼합 녹음 마이크 음량 자동 보정
     - _mix_mic_system(): 마이크 RMS가 시스템 오디오 절반 미만이면 최대 8배 자동 증폭
