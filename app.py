@@ -240,6 +240,24 @@ class AutoTranscriptionWorker:
             self._finalize_triggered = True
         self.enqueue({"type": "finalize"})
 
+    def enqueue_file(self, path: str):
+        """외부 파일(업로드/폴더)을 전사 큐에 투입."""
+        try:
+            import soundfile as _sf
+            info = _sf.info(path)
+            duration = info.duration
+        except Exception:
+            duration = 0.0
+        part = len([j for j in list(self._queue.queue) if j.get("type") != "finalize"]) + (1 if self._current_label else 0) + 1
+        job = {
+            "wav_path": path,
+            "part_index": part,
+            "start_sec": 0.0,
+            "end_sec": duration,
+            "has_parts": True,
+        }
+        self.enqueue(job)
+
     def pop_result(self) -> dict | None:
         with self._lock:
             return self._results.popleft() if self._results else None
@@ -639,6 +657,40 @@ body, .gradio-container {
     min-width: 0 !important;
     padding: 0 4px !important;
 }
+
+/* -- 파일 목록 -- */
+#wn-file-list {
+    max-height: 220px;
+    overflow-y: auto;
+    background: #0d1117;
+    border: 1px solid #1e2130;
+    border-radius: 8px;
+    padding: 4px 0;
+}
+.wn-file-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    margin: 1px 4px;
+    transition: background .1s;
+    color: #9ca3af;
+    font-size: 0.84rem;
+    font-family: 'JetBrains Mono', monospace;
+    user-select: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wn-file-item:hover { background: #1e2130; color: #e5e7eb; }
+.wn-file-item.selected { background: #1e2d4a; color: #818cf8; }
+.wn-file-empty {
+    padding: 16px;
+    text-align: center;
+    color: #4b5563;
+    font-size: 0.82rem;
+}
 """
 
 # ---------------------------------------------------------------------------
@@ -1022,6 +1074,91 @@ def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
     return recorded if recorded else uploaded
 
 
+# ── 파일 목록 헬퍼 ──────────────────────────────────────
+
+def _scan_audio_files(folder) -> list:
+    """폴더에서 오디오 파일을 파일명 오름차순으로 반환."""
+    if not folder or not Path(folder).exists():
+        return []
+    exts = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"}
+    files = sorted(
+        [str(f) for f in Path(folder).iterdir() if f.suffix.lower() in exts],
+        key=lambda p: Path(p).name.lower(),
+    )
+    return files
+
+
+def _render_file_list(paths: list) -> str:
+    """파일 목록 HTML 렌더링."""
+    if not paths:
+        return '<div id="wn-file-list"><div class="wn-file-empty">파일 없음</div></div>'
+    items = ""
+    for p in paths:
+        name = Path(p).name
+        items += (
+            f'<div class="wn-file-item" data-path="{p}" title="{p}">'
+            f'<span class="wn-file-name">{name}</span>'
+            f'</div>'
+        )
+    return f'<div id="wn-file-list">{items}</div>'
+
+
+def load_folder_file_list(cat_data_val, l1_id, l2_id, l3_id):
+    """분류 폴더 기반 파일 목록 로드."""
+    folder = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
+    wav_folder = _wav_dir(cat_data_val, l1_id, l2_id, l3_id)
+    paths = _scan_audio_files(wav_folder)
+    if wav_folder != folder:
+        paths += _scan_audio_files(folder)
+    paths = sorted(set(paths), key=lambda p: Path(p).name.lower())
+    html = _render_file_list(paths)
+    count = f"전체 {len(paths)}개" if paths else ""
+    return html, paths, count
+
+
+def handle_upload_files(files, current_paths: list):
+    """파일 추가 업로드 처리."""
+    if not files:
+        return _render_file_list(current_paths), current_paths, f"전체 {len(current_paths)}개"
+    uploaded = [f if isinstance(f, str) else f.name for f in files]
+    merged = sorted(set(current_paths + uploaded), key=lambda p: Path(p).name.lower())
+    html = _render_file_list(merged)
+    count = f"전체 {len(merged)}개"
+    return html, merged, count
+
+
+def handle_file_selection(selected_json: str, file_paths: list):
+    """선택된 파일 경로 JSON -> Audio 로드 + 선택 카운트."""
+    import json
+    try:
+        selected = json.loads(selected_json) if selected_json else []
+    except Exception:
+        selected = []
+    audio_val = selected[0] if selected else None
+    count = f"선택 {len(selected)}개" if selected else ""
+    return audio_val, count
+
+
+def handle_clear_file_list():
+    """파일 목록 비우기."""
+    return _render_file_list([]), [], "", None, ""
+
+
+def _on_file_select(selected_json: str, file_paths_val: list):
+    """파일 선택 → audio_preview, file_count_label, uploaded_file 갱신."""
+    import json as _j
+    try:
+        selected = _j.loads(selected_json) if selected_json else []
+    except Exception:
+        selected = []
+    audio_val = selected[0] if selected else None
+    count_html = (
+        f'<span style="color:#818cf8;font-size:.82rem">{len(selected)}개 선택</span>'
+        if selected else ""
+    )
+    return audio_val, count_html, audio_val or ""
+
+
 def handle_transcribe(recorded: str, uploaded: str | None, cat_data_val, l1_id, l2_id, l3_id, progress=gr.Progress()):
     _no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     audio = _resolve_audio(recorded, uploaded)
@@ -1173,6 +1310,62 @@ def handle_pipeline(
         return "", "", "", "", f"실패: {exc}", "", *_disp_no
 
 
+def handle_file_list_process(
+    selected_json: str,
+    file_paths: list,
+    action: str,
+    model_name: str,
+    summary_type_val: str,
+    cat_data_val, l1_id, l2_id, l3_id,
+    progress=gr.Progress(),
+):
+    """파일 목록에서 선택된 파일 처리. outputs: 11개 (handle_pipeline 기준)."""
+    import json as _json
+    _no11 = tuple(gr.update() for _ in range(11))
+    try:
+        selected = _json.loads(selected_json) if selected_json else []
+    except Exception:
+        selected = []
+    if not selected:
+        return *_no11[:10], "선택된 파일이 없습니다."
+
+    out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
+
+    if len(selected) == 1:
+        audio = selected[0]
+        if action == "pipeline":
+            # handle_pipeline: 11개 반환
+            return handle_pipeline(audio, None, model_name, summary_type_val, cat_data_val, l1_id, l2_id, l3_id, progress)
+        elif action == "transcribe":
+            # handle_transcribe: 9개 반환
+            # (transcript, t_file, merged_stem, status, text_display, display_file_path, view_radio, correction_output, corrected_file_path)
+            res = handle_transcribe(audio, None, cat_data_val, l1_id, l2_id, l3_id, progress)
+            # outputs(11): transcript_output, transcript_file_path, summary_output, summary_file_path,
+            #              pipeline_status, merged_stem_state,
+            #              text_display, display_file_path, view_radio, correction_output, corrected_file_path
+            return (res[0], res[1],
+                    gr.update(), gr.update(),
+                    res[3], res[2],
+                    res[4], res[5], res[6], res[7], res[8])
+        else:
+            return *_no11[:10], "전사 결과를 먼저 실행하세요."
+    else:
+        audio_stem_base = Path(selected[0]).stem
+        combined_path = out_dir / f"{audio_stem_base}_merged_transcript.txt"
+        auto_worker.reset(
+            combined_path=combined_path,
+            out_dir=out_dir,
+            model_name=model_name,
+            summary_type=summary_type_val if action == "pipeline" else "회의",
+        )
+        for path in selected:
+            auto_worker.enqueue_file(path)
+        if action in ("pipeline", "transcribe"):
+            auto_worker.enqueue_finalize()
+        msg = f"처리 시작 - {len(selected)}개 파일"
+        return *_no11[:10], msg
+
+
 def refresh_ollama_models():
     models = summarizer.get_available_models()
     if not models:
@@ -1253,6 +1446,36 @@ _LEVEL_JS = """() => {
   }, 200);
 }"""
 
+_FILE_LIST_JS = """() => {
+  function setupFileList() {
+    var list = document.getElementById('wn-file-list');
+    if (!list) { setTimeout(setupFileList, 500); return; }
+    var selected = [];
+    list.addEventListener('click', function(e) {
+      var item = e.target.closest('.wn-file-item');
+      if (!item) return;
+      var path = item.dataset.path;
+      if (e.ctrlKey || e.metaKey) {
+        var idx = selected.indexOf(path);
+        if (idx >= 0) { selected.splice(idx, 1); item.classList.remove('selected'); }
+        else { selected.push(path); item.classList.add('selected'); }
+      } else {
+        list.querySelectorAll('.wn-file-item.selected').forEach(function(el) { el.classList.remove('selected'); });
+        selected = [path];
+        item.classList.add('selected');
+      }
+      var tb = document.querySelector('#wn-selected-paths textarea');
+      if (tb) {
+        tb.value = JSON.stringify(selected);
+        tb.dispatchEvent(new Event('input', {bubbles: true}));
+      }
+    });
+    var obs = new MutationObserver(function() { selected = []; });
+    obs.observe(list, {childList: true});
+  }
+  setupFileList();
+}"""
+
 
 # ---------------------------------------------------------------------------
 # UI
@@ -1280,6 +1503,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
             cat_data    = gr.State(cat_mod.load())
             cat_edit_ctx = gr.State({"col": 0, "action": "", "item_id": "", "parent_id": None})
             merged_stem_state = gr.State("")
+            file_paths   = gr.State([])
 
             # ════════════════════════════════════════════════════════
             # 분류 설정 패널 (전체 너비, 기본 숨김)
@@ -1403,12 +1627,20 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                 # ── 왼쪽 패널 ──────────────────────────
                 with gr.Column(scale=1, min_width=260, elem_classes="wn-card"):
 
-                    gr.HTML('<div class="wn-label">파일 업로드</div>')
-                    uploaded_file = gr.Audio(
-                        label="",
-                        type="filepath",
-                        elem_classes="wn-upload",
+                    with gr.Row(elem_classes="wn-file-header"):
+                        gr.HTML('<div class="wn-label" style="flex:1;margin:0">파일 목록</div>')
+                        file_count_label = gr.HTML("")
+                        btn_fl_reload = gr.Button("↺", elem_classes="wn-btn-secondary", scale=0, min_width=34)
+                        btn_fl_clear  = gr.Button("✕", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=0, min_width=34)
+                    file_list_display = gr.HTML(_render_file_list([]))
+                    selected_paths = gr.Textbox(visible=False, elem_id="wn-selected-paths")
+                    uploaded_files_add = gr.File(
+                        label="파일 추가 (드래그 또는 클릭)",
+                        file_types=[".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"],
+                        file_count="multiple",
                     )
+                    audio_preview = gr.Audio(label="재생", type="filepath", interactive=False)
+                    uploaded_file = gr.Textbox(visible=False)
 
                     gr.HTML('<hr class="wn-divider"><div class="wn-label">Ollama 모델</div>')
                     with gr.Row():
@@ -1573,6 +1805,7 @@ python app.py
     # 페이지 로드
     demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
     demo.load(fn=None, js=_LEVEL_JS)
+    demo.load(fn=None, js=_FILE_LIST_JS)
     demo.load(init_cat_ui, inputs=[cat_data], outputs=[cat_l1, cat1_radio])
     demo.load(lambda: gr.update(choices=prompts.list_summary_types()), outputs=[summary_type])
 
@@ -1660,6 +1893,30 @@ python app.py
     btn_open_display_folder.click(handle_open_folder, inputs=[display_file_path])
     btn_open_summary_folder.click(handle_open_folder, inputs=[summary_file_path])
 
+    # 전사/교정/요약/파이프라인 공통 입력
+    _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
+
+    # 파일 목록
+    btn_fl_reload.click(
+        load_folder_file_list,
+        inputs=_cat_inputs,
+        outputs=[file_list_display, file_paths, file_count_label],
+    )
+    btn_fl_clear.click(
+        handle_clear_file_list,
+        outputs=[file_list_display, file_paths, file_count_label, audio_preview, selected_paths],
+    )
+    uploaded_files_add.upload(
+        handle_upload_files,
+        inputs=[uploaded_files_add, file_paths],
+        outputs=[file_list_display, file_paths, file_count_label],
+    )
+    selected_paths.change(
+        _on_file_select,
+        inputs=[selected_paths, file_paths],
+        outputs=[audio_preview, file_count_label, uploaded_file],
+    )
+
     # view_radio 전환: 숨겨진 상태에서 표시 텍스트/파일 경로 갱신
     def switch_view(choice, transcript, correction, t_file, c_file):
         if choice == "교정":
@@ -1672,8 +1929,7 @@ python app.py
         outputs=[text_display, display_file_path],
     )
 
-    # 전사/교정/요약/파이프라인 (카테고리 파라미터 추가)
-    _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
+    # 전사/교정/요약/파이프라인
     btn_transcribe.click(
         handle_transcribe,
         inputs=[recorded_file, uploaded_file] + _cat_inputs,
