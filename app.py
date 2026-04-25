@@ -12,8 +12,10 @@ import threading
 from collections import deque
 from pathlib import Path
 
-# 앱 실행 중 발생하는 에러를 파일로 기록 (창 닫혀도 로그 남음)
-_LOG_PATH = Path(__file__).parent / "whispernote_error.log"
+# 에러 로그 — logs/ 폴더에 날짜별 파일로 수집
+_LOGS_DIR = Path(__file__).parent / "logs"
+_LOGS_DIR.mkdir(exist_ok=True)
+_LOG_PATH = _LOGS_DIR / f"{__import__('datetime').date.today():%Y-%m-%d}.log"
 logging.basicConfig(
     filename=str(_LOG_PATH),
     level=logging.ERROR,

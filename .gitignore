@@ -5,6 +5,7 @@ recordings/
 outputs/
 install_log.txt
 whispernote_error.log
+logs/
 
 # WhisperX model cache
 models/*
