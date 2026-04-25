@@ -100,21 +100,35 @@ rem Ollama
 echo [5/5] Checking Ollama...
 where ollama >nul 2>&1
 if errorlevel 1 (
-    echo   [INFO] Ollama not found. Install from https://ollama.com
-    echo   Then run: ollama pull exaone3.5:latest
-) else (
-    echo   Starting Ollama server for model download...
-    start /b ollama serve >nul 2>&1
-    timeout /t 3 /nobreak >nul
-    echo   Downloading EXAONE 3.5 model (first time only)...
-    ollama pull exaone3.5:latest
+    echo   Ollama not found. Downloading installer...
+    powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12,Tls13'; try { Invoke-WebRequest 'https://ollama.com/download/OllamaSetup.exe' -OutFile 'OllamaSetup.exe' -UseBasicParsing } catch { exit 1 }" >nul 2>&1
     if errorlevel 1 (
-        echo   [WARN] Model download failed. Run manually after install:
-        echo         ollama pull exaone3.5:latest
-    ) else (
-        echo   EXAONE 3.5 model ready.
+        echo   [WARN] Ollama download failed. Install manually from https://ollama.com
+        echo         Then run: ollama pull exaone3.5:latest
+        goto ollama_done
     )
+    echo   Installing Ollama (silent)...
+    start /wait OllamaSetup.exe /S
+    del OllamaSetup.exe >nul 2>&1
+    where ollama >nul 2>&1
+    if errorlevel 1 (
+        echo   [WARN] Ollama install failed. Install manually from https://ollama.com
+        echo         Then run: ollama pull exaone3.5:latest
+        goto ollama_done
+    )
+    echo   Ollama installed.
 )
+echo   Starting Ollama server...
+start /b ollama serve >nul 2>&1
+timeout /t 3 /nobreak >nul
+echo   Downloading EXAONE 3.5 model (first time only)...
+ollama pull exaone3.5:latest
+if errorlevel 1 (
+    echo   [WARN] Model download failed. Run manually: ollama pull exaone3.5:latest
+) else (
+    echo   EXAONE 3.5 model ready.
+)
+:ollama_done
 
 echo.
 echo ======================================
