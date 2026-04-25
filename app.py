@@ -1170,9 +1170,10 @@ def handle_pipeline(
 def refresh_ollama_models():
     models = summarizer.get_available_models()
     if not models:
-        return gr.update(choices=[OLLAMA_MODEL], value=OLLAMA_MODEL), "Ollama 연결 실패"
+        return gr.update(choices=[OLLAMA_MODEL], value=OLLAMA_MODEL), \
+               '<div class="wn-cat-path" style="color:#ef4444">⚠ Ollama 연결 실패 — ollama serve 실행 여부 확인</div>'
     value = OLLAMA_MODEL if OLLAMA_MODEL in models else models[0]
-    return gr.update(choices=models, value=value), f"모델 {len(models)}개"
+    return gr.update(choices=models, value=value), ""
 
 
 def list_audio_devices():
@@ -1416,12 +1417,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_refresh = gr.Button(
                             "↻", elem_classes="wn-btn-secondary", scale=1
                         )
-                    model_status = gr.Textbox(
-                        interactive=False,
-                        show_label=False,
-                        lines=1,
-                        elem_classes="wn-filepath",
-                    )
+                    model_status = gr.HTML("")
 
                     gr.HTML('<hr class="wn-divider">')
                     btn_pipeline = gr.Button(
