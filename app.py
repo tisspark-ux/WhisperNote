@@ -863,6 +863,7 @@ def cat_close_panel(): return gr.update(visible=False)
 
 # L1 radio 선택 → L2 초기화, 헤더 갱신, 드롭다운 갱신
 def on_panel_l1(data, l1_id):
+    l1_ch = _cat_choices(data, None)
     l2_ch = _cat_choices(data, l1_id)
     l1n = cat_mod.get_name(data, l1_id)
     return (
@@ -870,7 +871,7 @@ def on_panel_l1(data, l1_id):
         gr.update(choices=[], value=None),
         gr.update(value=_col_header(2, l1n)),
         gr.update(value=_col_header(3, None)),
-        gr.update(value=l1_id),
+        gr.update(choices=l1_ch, value=l1_id),
         gr.update(choices=l2_ch, value=None),
         gr.update(choices=[], value=None),
         _path_html(data, l1_id, None, None),
@@ -878,19 +879,21 @@ def on_panel_l1(data, l1_id):
 
 # L2 radio 선택 → L3 초기화, 헤더 갱신, 드롭다운 갱신
 def on_panel_l2(data, l1_id, l2_id):
+    l2_ch = _cat_choices(data, l1_id)
     l3_ch = _cat_choices(data, l2_id)
     l2n = cat_mod.get_name(data, l2_id)
     return (
         gr.update(choices=l3_ch, value=None),
         gr.update(value=_col_header(3, l2n)),
-        gr.update(value=l2_id),
+        gr.update(choices=l2_ch, value=l2_id),
         gr.update(choices=l3_ch, value=None),
         _path_html(data, l1_id, l2_id, None),
     )
 
 # L3 radio 선택 → 드롭다운 + 경로 갱신
 def on_panel_l3(data, l1_id, l2_id, l3_id):
-    return gr.update(value=l3_id), _path_html(data, l1_id, l2_id, l3_id)
+    l3_ch = _cat_choices(data, l2_id)
+    return gr.update(choices=l3_ch, value=l3_id), _path_html(data, l1_id, l2_id, l3_id)
 
 # 메인 드롭다운 cascade
 def on_l1_change(data, l1_id):

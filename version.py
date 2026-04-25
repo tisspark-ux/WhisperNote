@@ -1,6 +1,12 @@
-__version__ = "1.0.34"
+__version__ = "1.0.35"
 
 CHANGELOG = """
+v1.0.35 (2026-04-25)
+  - [수정] 분류 설정 패널 라디오 선택 시 대/중/소분류 드롭다운 미표시 버그
+    - on_panel_l1/l2/l3: value만 업데이트 → choices+value 함께 업데이트
+    - Gradio가 choices 없이 value만 받으면 라벨을 못 찾는 문제 해결
+
+
 v1.0.34 (2026-04-25)
   - [수정] 마이크 볼륨 기본값 1.0 → 3.0 (app.py 슬라이더 + recorder.py mic_gain)
 
