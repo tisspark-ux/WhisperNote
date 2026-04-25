@@ -1,6 +1,13 @@
-__version__ = "1.0.31"
+__version__ = "1.0.32"
 
 CHANGELOG = """
+v1.0.32 (2026-04-25)
+  - [수정] 레벨미터/타이머 가로 비율 조정
+    - 레벨미터 scale 4→2 (녹음 시작 버튼 너비와 정렬)
+    - 타이머 scale 1→4 (녹음 종료 버튼 왼쪽부터 시작)
+    - 타이머 white-space:nowrap 추가 (두 줄 잘림 방지)
+
+
 v1.0.31 (2026-04-25)
   - [수정] app.py: import prompts 추가, summary_type 드롭다운 동적 로드
     - prompts.list_summary_types()로 choices 설정 (prompts/summary/ 폴더 기반)
