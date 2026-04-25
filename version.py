@@ -1,6 +1,18 @@
-__version__ = "1.0.45"
+__version__ = "1.0.46"
 
 CHANGELOG = """
+v1.0.46 (2026-04-25)
+  - [리팩토링] app.py 모듈 분할 (2047줄 → 핵심 UI/이벤트만 남김)
+    - patches.py: OS/SSL/Gradio 패치 추출
+    - instances.py: recorder/transcriber/summarizer 공유 인스턴스 + 장치 sentinel 상수
+    - worker.py: AutoTranscriptionWorker 추출
+    - styles.py: CSS 문자열 추출
+    - handlers_category.py: 분류 패널 헬퍼 및 핸들러
+    - handlers_files.py: 파일 목록 헬퍼 및 핸들러
+    - handlers_recording.py: 녹음/폴링/마이크 테스트 핸들러
+    - handlers_ai.py: 전사/교정/요약/파이프라인 핸들러
+  - [리팩토링] summarizer.py: _call_ollama() 헬퍼로 중복 예외처리 통합
+  - [리팩토링] recorder.py: _run_wasapi_loopback/_run_wasapi_mix → _run_wasapi_thread() 공용 메서드
 v1.0.45 (2026-04-25)
   - [수정] 파일 목록 ＋/－ 버튼 크기 불일치 수정
     - btn_fl_remove: wn-cat-btn-sm → wn-btn-secondary wn-btn-del (동일 높이 38px)
