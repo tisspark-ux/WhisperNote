@@ -693,6 +693,14 @@ body, .gradio-container {
     color: #4b5563;
     font-size: 0.82rem;
 }
+.wn-hidden-input {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
 """
 
 # ---------------------------------------------------------------------------
@@ -1148,6 +1156,19 @@ def handle_clear_file_list():
     return _render_file_list([]), [], "", None, ""
 
 
+def handle_remove_selected(selected_json: str, file_paths_val: list):
+    """선택된 파일을 목록에서 제거."""
+    import json as _j
+    try:
+        selected = set(_j.loads(selected_json)) if selected_json else set()
+    except Exception:
+        selected = set()
+    remaining = [p for p in file_paths_val if p not in selected]
+    html = _render_file_list(remaining)
+    count = f"전체 {len(remaining)}개" if remaining else ""
+    return html, remaining, count, ""   # selected_paths 초기화
+
+
 def _on_file_select(selected_json: str, file_paths_val: list):
     """파일 선택 → audio_preview, file_count_label, uploaded_file 갱신."""
     import json as _j
@@ -1481,6 +1502,15 @@ _FILE_LIST_JS = """() => {
     });
     var obs = new MutationObserver(function() { selected = []; });
     obs.observe(list, {childList: true});
+
+    // + 버튼 → 숨겨진 파일 업로드 input 클릭
+    var addBtn = document.querySelector('#wn-file-add-btn button');
+    if (addBtn) {
+      addBtn.addEventListener('click', function() {
+        var fileInput = document.querySelector('#wn-file-upload input[type=file]');
+        if (fileInput) fileInput.click();
+      });
+    }
   }
   setupFileList();
 }"""
@@ -1568,7 +1598,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         value=-1,
                         interactive=True,
                         elem_classes="wn-dropdown",
-                        scale=4,
+                        scale=3,
                     )
                     mic_gain_slider = gr.Slider(
                         label="🎙 마이크 볼륨",
@@ -1576,12 +1606,12 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         visible=True, scale=2,
                     )
                     system_gain_slider = gr.Slider(
-                        label="🎧 시스템 오디오 볼륨",
+                        label="🎧 시스템 볼륨",
                         minimum=0.5, maximum=4.0, value=1.0, step=0.1,
                         visible=False, scale=2,
                     )
                     chunk_minutes_input = gr.Number(
-                        label="자동 분할 (분, 0=끄기)",
+                        label="자동 분할 (분)",
                         value=30,
                         minimum=0,
                         maximum=180,
@@ -1594,8 +1624,18 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         value="회의",
                         interactive=True,
                         elem_classes="wn-dropdown",
+                        scale=1,
+                    )
+                    ollama_model = gr.Dropdown(
+                        label="요약 모델",
+                        choices=[OLLAMA_MODEL],
+                        value=OLLAMA_MODEL,
+                        allow_custom_value=True,
+                        interactive=True,
+                        elem_classes="wn-dropdown",
                         scale=2,
                     )
+                    btn_refresh = gr.Button("↻", elem_classes="wn-btn-secondary", scale=0, min_width=34)
                 with gr.Row():
                     btn_start = gr.Button("● 녹음 시작", elem_id="btn-start", scale=2)
                     btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False, scale=2)
@@ -1640,30 +1680,24 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         gr.HTML('<div class="wn-label" style="flex:1;margin:0">파일 목록</div>')
                         file_count_label = gr.HTML("")
                         btn_fl_reload = gr.Button("↺", elem_classes="wn-btn-secondary", scale=0, min_width=34)
-                        btn_fl_clear  = gr.Button("✕", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=0, min_width=34)
+                        btn_fl_add    = gr.Button("＋", elem_id="wn-file-add-btn", elem_classes="wn-btn-secondary", scale=0, min_width=34)
+                        btn_fl_remove = gr.Button("－", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=0, min_width=34)
                     file_list_display = gr.HTML(_render_file_list([]))
-                    selected_paths = gr.Textbox(visible=False, elem_id="wn-selected-paths")
+                    selected_paths = gr.Textbox(
+                        elem_id="wn-selected-paths",
+                        show_label=False,
+                        container=False,
+                        elem_classes="wn-hidden-input",
+                    )
                     uploaded_files_add = gr.File(
                         label="파일 추가 (드래그 또는 클릭)",
                         file_types=[".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"],
                         file_count="multiple",
+                        elem_id="wn-file-upload",
                     )
                     audio_preview = gr.Audio(label="재생", type="filepath", interactive=False)
                     uploaded_file = gr.Textbox(visible=False)
 
-                    gr.HTML('<hr class="wn-divider"><div class="wn-label">Ollama 모델</div>')
-                    with gr.Row():
-                        ollama_model = gr.Dropdown(
-                            choices=[OLLAMA_MODEL],
-                            value=OLLAMA_MODEL,
-                            allow_custom_value=True,
-                            show_label=False,
-                            elem_classes="wn-dropdown",
-                            scale=3,
-                        )
-                        btn_refresh = gr.Button(
-                            "↻", elem_classes="wn-btn-secondary", scale=1
-                        )
                     model_status = gr.HTML("")
 
                     gr.HTML('<hr class="wn-divider">')
@@ -1905,15 +1939,24 @@ python app.py
     # 전사/교정/요약/파이프라인 공통 입력
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
 
+    # 분류 변경 시 파일 목록 자동 갱신
+    for _cat_dd in [cat_l1, cat_l2, cat_l3]:
+        _cat_dd.change(
+            load_folder_file_list,
+            inputs=_cat_inputs,
+            outputs=[file_list_display, file_paths, file_count_label],
+        )
+
     # 파일 목록
     btn_fl_reload.click(
         load_folder_file_list,
         inputs=_cat_inputs,
         outputs=[file_list_display, file_paths, file_count_label],
     )
-    btn_fl_clear.click(
-        handle_clear_file_list,
-        outputs=[file_list_display, file_paths, file_count_label, audio_preview, selected_paths],
+    btn_fl_remove.click(
+        handle_remove_selected,
+        inputs=[selected_paths, file_paths],
+        outputs=[file_list_display, file_paths, file_count_label, selected_paths],
     )
     uploaded_files_add.upload(
         handle_upload_files,
@@ -2007,5 +2050,5 @@ if __name__ == "__main__":
         prevent_thread_lock=True,
     )
     _app.get("/api/level")(_api_level)
-    _start_heartbeat_watcher()
+    # _start_heartbeat_watcher()  # 백그라운드 탭 throttle 오탐 문제로 임시 비활성화
     demo.block_thread()

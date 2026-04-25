@@ -1,6 +1,17 @@
-__version__ = "1.0.42"
+__version__ = "1.0.43"
 
 CHANGELOG = """
+v1.0.43 (2026-04-25)
+  - [수정] 파일 목록 UI 5가지 문제 수정
+    1. 분류 선택 시 파일 목록 자동 갱신 (cat_l1/l2/l3 change 이벤트 연결)
+    2. 파일 클릭 반응 없음 수정 — selected_paths visible=False → CSS 숨김(.wn-hidden-input)
+    3. 파일 개별 제거 (－) 버튼 추가 / ＋ 버튼 → 파일 업로드 input 트리거
+       handle_remove_selected() 추가
+    4. 요약 모델(구 Ollama 모델) → 녹음 행 우측으로 이동, 명칭 변경
+       입력 장치 scale 4→3, 자동분할 레이블 단축, 요약구분 scale 2→1
+    5. heartbeat watchdog 임시 비활성화 (브라우저 백그라운드 탭 throttle 오탐)
+
+
 v1.0.42 (2026-04-25)
   - [수정] 소스 코드 점검 결과 버그 수정
     - app.py: handle_open_folder — os.startfile() Linux/macOS AttributeError
