@@ -1,6 +1,13 @@
-__version__ = "1.0.43"
+__version__ = "1.0.44"
 
 CHANGELOG = """
+v1.0.44 (2026-04-25)
+  - [수정] 파일 목록 클릭 무반응 수정
+    - selected_paths container=False 제거 (elem_id wrapper 정상화)
+    - JS: tb.value 직접 할당 → HTMLTextAreaElement native setter 사용
+    - JS: input + change 이벤트 모두 dispatch (Svelte 반응형 상태 갱신)
+
+
 v1.0.43 (2026-04-25)
   - [수정] 파일 목록 UI 5가지 문제 수정
     1. 분류 선택 시 파일 목록 자동 갱신 (cat_l1/l2/l3 change 이벤트 연결)

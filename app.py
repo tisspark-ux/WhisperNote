@@ -1496,8 +1496,10 @@ _FILE_LIST_JS = """() => {
       }
       var tb = document.querySelector('#wn-selected-paths textarea');
       if (tb) {
-        tb.value = JSON.stringify(selected);
+        var setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+        setter.call(tb, JSON.stringify(selected));
         tb.dispatchEvent(new Event('input', {bubbles: true}));
+        tb.dispatchEvent(new Event('change', {bubbles: true}));
       }
     });
     var obs = new MutationObserver(function() { selected = []; });
@@ -1686,8 +1688,8 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     selected_paths = gr.Textbox(
                         elem_id="wn-selected-paths",
                         show_label=False,
-                        container=False,
                         elem_classes="wn-hidden-input",
+                        lines=1,
                     )
                     uploaded_files_add = gr.File(
                         label="파일 추가 (드래그 또는 클릭)",
