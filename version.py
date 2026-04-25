@@ -1,6 +1,18 @@
-__version__ = "1.0.41"
+__version__ = "1.0.42"
 
 CHANGELOG = """
+v1.0.42 (2026-04-25)
+  - [수정] 소스 코드 점검 결과 버그 수정
+    - app.py: handle_open_folder — os.startfile() Linux/macOS AttributeError
+      → darwin: open, linux: xdg-open 으로 분기
+    - app.py: _last_heartbeat 초기값 0.0 → float("inf")
+      → 첫 폴링 전 타임아웃 조기 발생 방지, _watch() 내 수동 초기화 제거
+    - recorder.py: _run_wasapi_loopback/_run_wasapi_mix Exception 시 stream 정리 추가
+    - recorder.py: stop() — _chunk_timer.join() 추가 (콜백 완료 대기, 레이스 컨디션 방지)
+    - transcriber.py: output_file.write_text() OSError → RuntimeError 변환
+    - summarizer.py: summarize()/correct_transcript() write_text() OSError → RuntimeError 변환
+
+
 v1.0.41 (2026-04-25)
   - [개선] 에러 로그 날짜별 파일 분리 — logs/YYYY-MM-DD.log
     - 기존 whispernote_error.log 단일 파일 → logs/ 폴더 날짜별 관리

@@ -1068,8 +1068,10 @@ def handle_open_folder(path: str):
         return
     if sys.platform == "win32":
         subprocess.Popen(["explorer", str(folder)])
+    elif sys.platform == "darwin":
+        subprocess.Popen(["open", str(folder)])
     else:
-        os.startfile(str(folder))
+        subprocess.Popen(["xdg-open", str(folder)])
 
 
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
@@ -1399,7 +1401,7 @@ def get_input_device_choices():
     return choices
 
 
-_last_heartbeat: float = 0.0
+_last_heartbeat: float = float("inf")  # 첫 폴링 전까지 타임아웃 억제
 
 async def _api_level():
     """레벨 미터 데이터를 JSON으로 반환하는 FastAPI 핸들러."""
@@ -1979,9 +1981,6 @@ def _start_heartbeat_watcher():
     _CHECK   = 5.0    # 감시 주기 (초)
 
     def _watch():
-        # 앱 시작 직후 heartbeat 초기화
-        global _last_heartbeat
-        _last_heartbeat = _t.monotonic()
         while True:
             _t.sleep(_CHECK)
             if _t.monotonic() - _last_heartbeat < _TIMEOUT:
