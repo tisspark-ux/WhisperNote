@@ -1350,16 +1350,16 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     btn_pause = gr.Button("⏸ 일시정지", elem_classes="wn-btn-secondary", interactive=False, scale=1)
                     btn_test  = gr.Button("마이크 테스트", elem_classes="wn-btn-secondary", scale=1)
                 with gr.Row():
-                    level_display = gr.HTML(
-                        value='<div id="wn-level-inner" class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
-                        elem_id="wn-level-wrap",
-                        scale=4,
-                    )
-                    timer_display = gr.HTML(
-                        value='<div id="wn-timer-inner" style="color:#4b5563;font-size:1.1rem;font-weight:600;letter-spacing:0.05em;height:36px;display:flex;align-items:center">대기 중</div>',
-                        elem_id="wn-timer-wrap",
-                        scale=1,
-                    )
+                    with gr.Column(scale=4, min_width=0):
+                        level_display = gr.HTML(
+                            value='<div id="wn-level-inner" class="wn-level-bar" style="color:#4b5563;height:36px;display:flex;align-items:center">마이크 대기 중</div>',
+                            elem_id="wn-level-wrap",
+                        )
+                    with gr.Column(scale=1, min_width=0):
+                        timer_display = gr.HTML(
+                            value='<div id="wn-timer-inner" style="color:#4b5563;font-size:1.1rem;font-weight:600;letter-spacing:0.05em;height:36px;display:flex;align-items:center">대기 중</div>',
+                            elem_id="wn-timer-wrap",
+                        )
                 with gr.Row():
                     record_status = gr.Textbox(
                         value="대기 중",
