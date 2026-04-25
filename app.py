@@ -144,6 +144,7 @@ from summarizer import Summarizer
 from transcriber import Transcriber
 import categories as cat_mod
 import storage
+import prompts
 
 _LOOPBACK_AUTO = -2
 _REMOTE_AUTO   = -3
@@ -1338,7 +1339,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     )
                     summary_type = gr.Dropdown(
                         label="요약 구분",
-                        choices=["회의", "면담", "보고서 리뷰"],
+                        choices=prompts.list_summary_types(),
                         value="회의",
                         interactive=True,
                         elem_classes="wn-dropdown",
@@ -1560,6 +1561,7 @@ python app.py
     demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
     demo.load(fn=None, js=_LEVEL_JS)
     demo.load(init_cat_ui, inputs=[cat_data], outputs=[cat_l1, cat1_radio])
+    demo.load(lambda: gr.update(choices=prompts.list_summary_types()), outputs=[summary_type])
 
     # 분류 설정 패널 열기/닫기
     btn_cat_settings.click(cat_open_panel, outputs=[cat_panel])
