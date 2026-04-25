@@ -111,24 +111,28 @@ class AudioRecorder:
         except Exception:
             return None
 
-    def _run_wasapi_loopback(self):
-        """soundcard WASAPI 루프백 녹음/테스트 스레드."""
+    def _run_wasapi_thread(self, target_list: list, error_attr: str):
+        """WASAPI 루프백 캡처 공용 스레드.
+
+        target_list : 수집한 오디오 청크를 append 할 리스트
+        error_attr  : 예외 발생 시 메시지를 저장할 self 속성 이름
+        """
         try:
             import soundcard as sc
         except ImportError:
-            self._wasapi_error = "soundcard 미설치. install.bat 재실행 또는 pip install soundcard"
+            setattr(self, error_attr, "soundcard 미설치. install.bat 재실행 또는 pip install soundcard")
             return
         import sys as _sys
         _com = False
         if _sys.platform == "win32":
             try:
                 import ctypes as _ct
-                # S_OK(0) or S_FALSE(1) = success; negative = failure
                 hr = _ct.windll.ole32.CoInitialize(None)
                 _com = hr >= 0
             except Exception:
                 pass
         CHUNK = 1024
+        is_main = target_list is self.audio_data
         try:
             speaker = sc.default_speaker()
             loopback_mic = sc.get_microphone(speaker.id, include_loopback=True)
@@ -138,13 +142,14 @@ class AudioRecorder:
                     if self.paused:
                         continue
                     with self.lock:
-                        self.audio_data.append(np.clip(data * self.system_gain, -1.0, 1.0))
-                        if self.testing and len(self.audio_data) > 20:
-                            self.audio_data.pop(0)
+                        target_list.append(np.clip(data * self.system_gain, -1.0, 1.0))
+                        if is_main and self.testing and len(target_list) > 20:
+                            target_list.pop(0)
         except Exception as exc:
-            self._wasapi_error = str(exc)
+            setattr(self, error_attr, str(exc))
             self.recording = False
-            self.testing = False
+            if is_main:
+                self.testing = False
             if self.stream:
                 try:
                     self.stream.stop()
@@ -160,50 +165,13 @@ class AudioRecorder:
                 except Exception:
                     pass
 
+    def _run_wasapi_loopback(self):
+        """soundcard WASAPI 루프백 녹음/테스트 스레드 (메인 버퍼)."""
+        self._run_wasapi_thread(self.audio_data, "_wasapi_error")
+
     def _run_wasapi_mix(self):
-        """혼합 녹음 시 WASAPI 루프백 스레드 (_mix_audio_data에 저장)."""
-        try:
-            import soundcard as sc
-        except ImportError:
-            self._mix_error = "soundcard 미설치"
-            return
-        import sys as _sys
-        _com = False
-        if _sys.platform == "win32":
-            try:
-                import ctypes as _ct
-                hr = _ct.windll.ole32.CoInitialize(None)
-                _com = hr >= 0
-            except Exception:
-                pass
-        CHUNK = 1024
-        try:
-            speaker = sc.default_speaker()
-            loopback_mic = sc.get_microphone(speaker.id, include_loopback=True)
-            with loopback_mic.recorder(samplerate=self._actual_samplerate, channels=CHANNELS) as rec:
-                while self.recording or self.testing:
-                    data = rec.record(numframes=CHUNK)
-                    if self.paused:
-                        continue
-                    with self.lock:
-                        self._mix_audio_data.append(np.clip(data * self.system_gain, -1.0, 1.0))
-        except Exception as exc:
-            self._mix_error = str(exc)
-            self.recording = False
-            if self.stream:
-                try:
-                    self.stream.stop()
-                    self.stream.close()
-                except Exception:
-                    pass
-                self.stream = None
-        finally:
-            if _com:
-                try:
-                    import ctypes as _ct
-                    _ct.windll.ole32.CoUninitialize()
-                except Exception:
-                    pass
+        """혼합 녹음 시 WASAPI 루프백 스레드 (믹스 버퍼)."""
+        self._run_wasapi_thread(self._mix_audio_data, "_mix_error")
 
     def find_rdp_device(self) -> tuple[int, str] | tuple[None, None]:
         """RDP 원격 오디오 입력 장치 검색. 입력 채널 있는 장치 우선 반환."""
