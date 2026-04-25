@@ -1,6 +1,12 @@
-__version__ = "1.0.46"
+__version__ = "1.0.47"
 
 CHANGELOG = """
+v1.0.47 (2026-04-25)
+  - [리팩토링] app.py 정리 완료 (2011줄 → 680줄): 모든 핸들러/CSS/워커 모듈 분리 후 앱 본체에서 삭제
+    - 분기명 누락 sentinel 상수 참조 수정 (_WASAPI_AUTO → WASAPI_AUTO 등)
+    - _on_file_select → on_file_select 이름 통일
+    - handle_clear_file_list, handle_file_selection 추가 import
+
 v1.0.46 (2026-04-25)
   - [리팩토링] app.py 모듈 분할 (2047줄 → 핵심 UI/이벤트만 남김)
     - patches.py: OS/SSL/Gradio 패치 추출
