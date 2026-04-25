@@ -627,6 +627,12 @@ body, .gradio-container {
 #btn-cat-settings { background: #161b27 !important; border: 1px solid #2d3348 !important; border-radius: 8px !important; color: #6b7280 !important; height: 36px !important; min-width: 36px !important; }
 #btn-cat-settings:hover { border-color: #818cf8 !important; color: #818cf8 !important; }
 
+/* ── 전사 결과 헤더 행: 라벨 좌측, 라디오 우측 ── */
+.wn-view-row { display: flex !important; align-items: center !important; justify-content: space-between !important; }
+.wn-view-row > * { flex: 0 0 auto !important; }
+.wn-view-radio { width: auto !important; }
+.wn-view-radio fieldset { display: flex !important; flex-direction: row !important; gap: 0.5rem !important; border: none !important; padding: 0 !important; margin: 0 !important; }
+
 /* ── 슬라이더 숫자 입력칸 너비 축소 ── */
 .gradio-slider input[type="number"] {
     width: 48px !important;
