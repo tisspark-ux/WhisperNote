@@ -3,14 +3,12 @@ from pathlib import Path
 import requests
 
 from config import (
-    CORRECTION_PROMPT_TEMPLATE,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
     OLLAMA_TIMEOUT,
     OUTPUTS_DIR,
-    SUMMARY_PROMPT_TEMPLATE,
-    SUMMARY_PROMPTS,
 )
+from prompts import get_correction_prompt, get_summary_prompt
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
@@ -57,7 +55,7 @@ class Summarizer:
             저장된 TXT 파일 경로
         """
         model = model or self.model
-        prompt = SUMMARY_PROMPTS.get(summary_type, SUMMARY_PROMPT_TEMPLATE).format(transcript=transcript)
+        prompt = get_summary_prompt(summary_type).format(transcript=transcript)
 
         try:
             resp = requests.post(
@@ -106,7 +104,7 @@ class Summarizer:
     ) -> tuple[str, str]:
         """Ollama 로 전사문을 교정한다. 구어체 다듬기, 추임새 제거 등."""
         model = model or self.model
-        prompt = CORRECTION_PROMPT_TEMPLATE.format(transcript=transcript)
+        prompt = get_correction_prompt().format(transcript=transcript)
 
         try:
             resp = requests.post(
