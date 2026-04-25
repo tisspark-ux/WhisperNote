@@ -87,7 +87,10 @@ class Summarizer:
         out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
         output_file = out_dir / f"{audio_stem}_summary.txt"
-        output_file.write_text(summary, encoding="utf-8")
+        try:
+            output_file.write_text(summary, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(f"요약 파일 저장 실패 ({output_file}): {exc}") from exc
 
         return summary, str(output_file)
 
@@ -135,6 +138,9 @@ class Summarizer:
         out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
         output_file = out_dir / f"{audio_stem}_transcript_corrected.txt"
-        output_file.write_text(corrected, encoding="utf-8")
+        try:
+            output_file.write_text(corrected, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(f"교정 파일 저장 실패 ({output_file}): {exc}") from exc
 
         return corrected, str(output_file)

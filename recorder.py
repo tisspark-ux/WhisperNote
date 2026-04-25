@@ -145,6 +145,13 @@ class AudioRecorder:
             self._wasapi_error = str(exc)
             self.recording = False
             self.testing = False
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except Exception:
+                    pass
+                self.stream = None
         finally:
             if _com:
                 try:
@@ -183,6 +190,13 @@ class AudioRecorder:
         except Exception as exc:
             self._mix_error = str(exc)
             self.recording = False
+            if self.stream:
+                try:
+                    self.stream.stop()
+                    self.stream.close()
+                except Exception:
+                    pass
+                self.stream = None
         finally:
             if _com:
                 try:
@@ -638,6 +652,7 @@ class AudioRecorder:
 
         if self._chunk_timer:
             self._chunk_timer.cancel()
+            self._chunk_timer.join()  # 콜백이 실행 중이면 완료 대기
             self._chunk_timer = None
 
         if self.stream:

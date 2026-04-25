@@ -280,7 +280,10 @@ class Transcriber:
         out_dir.mkdir(parents=True, exist_ok=True)
         stem = Path(audio_path).stem
         output_file = out_dir / f"{stem}_transcript.txt"
-        output_file.write_text(transcript, encoding="utf-8")
+        try:
+            output_file.write_text(transcript, encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(f"전사 파일 저장 실패 ({output_file}): {exc}") from exc
 
         print(f"[전사] 저장 완료: {output_file}", flush=True)
         _progress(1.0, f"전사 완료: {output_file.name}")
