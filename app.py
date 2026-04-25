@@ -517,6 +517,7 @@ body, .gradio-container {
     transition: background .2s !important;
 }
 .wn-btn-secondary:hover { background: #252b40 !important; color: #e5e7eb !important; }
+.wn-btn-del:hover { border-color: #ef4444 !important; color: #ef4444 !important; }
 
 /* ── 텍스트 박스 (결과) ── */
 .wn-result textarea {
@@ -1504,15 +1505,6 @@ _FILE_LIST_JS = """() => {
     });
     var obs = new MutationObserver(function() { selected = []; });
     obs.observe(list, {childList: true});
-
-    // + 버튼 → 숨겨진 파일 업로드 input 클릭
-    var addBtn = document.querySelector('#wn-file-add-btn button');
-    if (addBtn) {
-      addBtn.addEventListener('click', function() {
-        var fileInput = document.querySelector('#wn-file-upload input[type=file]');
-        if (fileInput) fileInput.click();
-      });
-    }
   }
   setupFileList();
 }"""
@@ -1682,20 +1674,19 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         gr.HTML('<div class="wn-label" style="flex:1;margin:0">파일 목록</div>')
                         file_count_label = gr.HTML("")
                         btn_fl_reload = gr.Button("↺", elem_classes="wn-btn-secondary", scale=0, min_width=34)
-                        btn_fl_add    = gr.Button("＋", elem_id="wn-file-add-btn", elem_classes="wn-btn-secondary", scale=0, min_width=34)
-                        btn_fl_remove = gr.Button("－", elem_classes="wn-cat-btn-sm wn-cat-btn-del", scale=0, min_width=34)
+                        btn_fl_add    = gr.UploadButton("＋",
+                            file_types=[".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"],
+                            file_count="multiple",
+                            elem_classes="wn-btn-secondary",
+                            scale=0, min_width=34,
+                        )
+                        btn_fl_remove = gr.Button("－", elem_classes="wn-btn-secondary wn-btn-del", scale=0, min_width=34)
                     file_list_display = gr.HTML(_render_file_list([]))
                     selected_paths = gr.Textbox(
                         elem_id="wn-selected-paths",
                         show_label=False,
                         elem_classes="wn-hidden-input",
                         lines=1,
-                    )
-                    uploaded_files_add = gr.File(
-                        label="파일 추가 (드래그 또는 클릭)",
-                        file_types=[".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"],
-                        file_count="multiple",
-                        elem_id="wn-file-upload",
                     )
                     audio_preview = gr.Audio(label="재생", type="filepath", interactive=False)
                     uploaded_file = gr.Textbox(visible=False)
@@ -1960,9 +1951,9 @@ python app.py
         inputs=[selected_paths, file_paths],
         outputs=[file_list_display, file_paths, file_count_label, selected_paths],
     )
-    uploaded_files_add.upload(
+    btn_fl_add.upload(
         handle_upload_files,
-        inputs=[uploaded_files_add, file_paths],
+        inputs=[btn_fl_add, file_paths],
         outputs=[file_list_display, file_paths, file_count_label],
     )
     selected_paths.change(

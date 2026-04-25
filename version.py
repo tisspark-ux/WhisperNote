@@ -1,6 +1,15 @@
-__version__ = "1.0.44"
+__version__ = "1.0.45"
 
 CHANGELOG = """
+v1.0.45 (2026-04-25)
+  - [수정] 파일 목록 ＋/－ 버튼 크기 불일치 수정
+    - btn_fl_remove: wn-cat-btn-sm → wn-btn-secondary wn-btn-del (동일 높이 38px)
+    - CSS: .wn-btn-del:hover 빨간 hover 추가
+  - [수정] ＋ 버튼 동작 안 함 수정
+    - gr.Button + JS hack → gr.UploadButton 으로 교체
+    - btn_fl_add.upload() 이벤트 연결, JS + 버튼 hack 제거
+
+
 v1.0.44 (2026-04-25)
   - [수정] 파일 목록 클릭 무반응 수정
     - selected_paths container=False 제거 (elem_id wrapper 정상화)
