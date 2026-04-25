@@ -1,6 +1,12 @@
-__version__ = "1.0.40"
+__version__ = "1.0.41"
 
 CHANGELOG = """
+v1.0.41 (2026-04-25)
+  - [개선] 에러 로그 날짜별 파일 분리 — logs/YYYY-MM-DD.log
+    - 기존 whispernote_error.log 단일 파일 → logs/ 폴더 날짜별 관리
+    - .gitignore: logs/ 추가
+
+
 v1.0.40 (2026-04-25)
   - [기능] 브라우저 탭 닫으면 CMD 창 자동 종료
     - /api/level heartbeat 30초 무응답 시 종료 트리거
