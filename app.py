@@ -1220,8 +1220,8 @@ _LEVEL_JS = """() => {
         el.textContent = '⏸ 일시정지됨';
       } else if (d.status === 'active') {
         var lv = d.level;
-        var filled = Math.round(lv / 10);
-        var bar = '█'.repeat(filled) + '░'.repeat(10 - filled);
+        var filled = Math.round(lv * 0.30);
+        var bar = '█'.repeat(filled) + '░'.repeat(30 - filled);
         el.style.color = lv > 80 ? '#ef4444' : '#6ee7b7';
         el.innerHTML = (d.testing ? '테스트 ' : '') + bar + '&nbsp;' + Math.round(lv) + '%';
       } else {
