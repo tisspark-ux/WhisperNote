@@ -1,6 +1,13 @@
-__version__ = "1.0.39"
+__version__ = "1.0.40"
 
 CHANGELOG = """
+v1.0.40 (2026-04-25)
+  - [기능] 브라우저 탭 닫으면 CMD 창 자동 종료
+    - /api/level heartbeat 30초 무응답 시 종료 트리거
+    - 녹음 중 또는 전사/요약 처리 중이면 완료 후 종료
+    - _start_heartbeat_watcher() daemon 스레드, 5초 주기 감시
+
+
 v1.0.39 (2026-04-25)
   - [기능] 파일 목록 UI 구현 — 왼쪽 패널 gr.Audio 업로드 → 파일 목록+추가+재생 구조로 교체
     - 파일 목록(HTML) + JS 클릭/Ctrl 다중 선택 → selected_paths Textbox 연동

@@ -1397,8 +1397,13 @@ def get_input_device_choices():
     return choices
 
 
+_last_heartbeat: float = 0.0
+
 async def _api_level():
     """레벨 미터 데이터를 JSON으로 반환하는 FastAPI 핸들러."""
+    global _last_heartbeat
+    import time as _t
+    _last_heartbeat = _t.monotonic()
     _no_elapsed = {"total": None, "part": None, "part_index": 1, "has_parts": False}
     if recorder.paused:
         return {"status": "paused", **recorder.get_elapsed()}
@@ -1965,6 +1970,31 @@ python app.py
 # 진입점
 # ---------------------------------------------------------------------------
 
+def _start_heartbeat_watcher():
+    import time as _t, threading as _th, os as _os
+
+    _TIMEOUT = 30.0   # 폴링 없으면 종료 대기 시간 (초)
+    _CHECK   = 5.0    # 감시 주기 (초)
+
+    def _watch():
+        # 앱 시작 직후 heartbeat 초기화
+        global _last_heartbeat
+        _last_heartbeat = _t.monotonic()
+        while True:
+            _t.sleep(_CHECK)
+            if _t.monotonic() - _last_heartbeat < _TIMEOUT:
+                continue
+            # 타임아웃 — 녹음/처리 완료 대기
+            if recorder.recording or auto_worker.is_busy():
+                print("브라우저 연결 끊김 — 처리 완료 후 종료 예정...", flush=True)
+                while recorder.recording or auto_worker.is_busy():
+                    _t.sleep(2)
+            print("WhisperNote 종료 (브라우저 탭 닫힘).", flush=True)
+            _os._exit(0)
+
+    _th.Thread(target=_watch, daemon=True, name="heartbeat-watcher").start()
+
+
 if __name__ == "__main__":
     print("  서버 시작 중 (포트 7860)...", flush=True)
     _app, _, _ = demo.launch(
@@ -1976,4 +2006,5 @@ if __name__ == "__main__":
         prevent_thread_lock=True,
     )
     _app.get("/api/level")(_api_level)
+    _start_heartbeat_watcher()
     demo.block_thread()
