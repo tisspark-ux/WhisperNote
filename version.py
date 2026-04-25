@@ -1,6 +1,16 @@
-__version__ = "1.0.38"
+__version__ = "1.0.39"
 
 CHANGELOG = """
+v1.0.39 (2026-04-25)
+  - [기능] 파일 목록 UI 구현 — 왼쪽 패널 gr.Audio 업로드 → 파일 목록+추가+재생 구조로 교체
+    - 파일 목록(HTML) + JS 클릭/Ctrl 다중 선택 → selected_paths Textbox 연동
+    - 분류 폴더 불러오기(↺), 목록 초기화(✕) 버튼
+    - gr.File 다중 업로드 → 목록에 추가
+    - 선택 파일 → audio_preview 재생 + uploaded_file(hidden) 갱신 → 기존 처리 버튼 호환
+    - AutoTranscriptionWorker.enqueue_file() 추가 (다중 파일 자동 처리용)
+    - _FILE_LIST_JS: 클릭/Ctrl+클릭 선택, MutationObserver 목록 갱신 시 선택 초기화
+
+
 v1.0.38 (2026-04-25)
   - [개선] 전사 결과 헤더 행 레이아웃 — 원문/교정 라디오 우측 정렬, 여백 제거
 
