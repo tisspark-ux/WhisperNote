@@ -82,7 +82,7 @@ class AudioRecorder:
         self._mix_thread: threading.Thread | None = None
         self._mix_error: str | None = None
         self._is_mixed: bool = False
-        self.mic_gain: float = 1.0
+        self.mic_gain: float = 3.0
         self.system_gain: float = 1.0
         self._recording_start: float | None = None
         self._part_start: float | None = None
