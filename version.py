@@ -1,6 +1,15 @@
-__version__ = "1.0.47"
+__version__ = "1.0.48"
 
 CHANGELOG = """
+v1.0.48 (2026-04-26)
+  - [리팩토링] 폴더 구조 재편: Python 파일을 core/lib/handlers/data/ 하위로 이동
+    - core/: recorder, transcriber, diarizer, summarizer, download_whisper
+    - lib/: patches, instances, worker, styles
+    - handlers/: recording, category, files, ai
+    - data/: categories, storage, prompts
+  - [변경] recordings/ 폴더 제거 — WAV 파일이 outputs/uncategorized/ (미분류) 또는 outputs/{카테고리}/ 에 저장
+  - [변경] config.py: RECORDINGS_DIR 제거, UNCATEGORIZED_DIR = outputs/uncategorized/ 추가
+
 v1.0.47 (2026-04-25)
   - [리팩토링] app.py 정리 완료 (2011줄 → 680줄): 모든 핸들러/CSS/워커 모듈 분리 후 앱 본체에서 삭제
     - 분기명 누락 sentinel 상수 참조 수정 (_WASAPI_AUTO → WASAPI_AUTO 등)

@@ -29,13 +29,24 @@ proxy config, version detection, etc. must go in Python (app.py or helpers).
 
 | File | Purpose |
 |---|---|
-| app.py | Main entry: all proxy/SSL/Gradio patches at top, then UI |
-| version.py | __version__ + CHANGELOG — bump on every change |
-| transcriber.py | WhisperX transcription + load_audio patch (PyAV) |
-| diarizer.py | resemblyzer + SpectralClustering speaker diarization |
-| summarizer.py | Ollama HTTP summarization |
-| recorder.py | sounddevice microphone/loopback recording |
+| app.py | Main entry: imports lib.patches first, then UI |
 | config.py | All user-configurable settings |
+| version.py | __version__ + CHANGELOG — bump on every change |
+| core/recorder.py | sounddevice microphone/loopback recording |
+| core/transcriber.py | WhisperX transcription + load_audio patch (PyAV) |
+| core/diarizer.py | resemblyzer + SpectralClustering speaker diarization |
+| core/summarizer.py | Ollama HTTP summarization |
+| lib/patches.py | OS/SSL/Gradio patches — must be imported first |
+| lib/instances.py | Shared singletons: recorder, transcriber, summarizer |
+| lib/worker.py | Background auto-transcription/correction/summary worker |
+| lib/styles.py | Gradio CSS |
+| handlers/recording.py | Recording/polling/mic-test event handlers |
+| handlers/category.py | Category panel helpers and event handlers |
+| handlers/files.py | File list UI helpers and event handlers |
+| handlers/ai.py | Transcription/correction/summary event handlers |
+| data/categories.py | Category tree CRUD (categories.json) |
+| data/storage.py | Directory resolution (outputs/ vs outputs/uncategorized/) |
+| data/prompts.py | Prompt file management (prompts/ folder) |
 
 ## Known patches in app.py (do not remove)
 

@@ -25,29 +25,29 @@ def _handle_exception(exc_type, exc_value, exc_tb):
 sys.excepthook = _handle_exception
 
 print("WhisperNote 시작 중...", flush=True)
-import patches  # OS/SSL/Gradio 패치 (가장 먼저 실행)
+import lib.patches  # OS/SSL/Gradio 패치 (가장 먼저 실행)
 
 print("  [3/3] AI 라이브러리 로딩 중 (최초 실행 시 30초 이상 소요)...", flush=True)
 import gradio as gr
 from version import __version__
-from instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
-from worker import auto_worker
-import categories as cat_mod
-import prompts
-from styles import CSS
-from handlers_recording import (handle_start_recording, handle_stop_recording,
+from lib.instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
+from lib.worker import auto_worker
+import data.categories as cat_mod
+import data.prompts as prompts
+from lib.styles import CSS
+from handlers.recording import (handle_start_recording, handle_stop_recording,
     handle_pause_resume, handle_chunk_poll, handle_mic_test)
-from handlers_category import (
+from handlers.category import (
     _col_header, _path_html, cat_open_panel,
     on_panel_l1, on_panel_l2, on_panel_l3,
     on_l1_change, on_l2_change, on_l3_change,
     cat_start_add, cat_start_edit, cat_cancel, cat_confirm, cat_delete,
     init_cat_ui, sync_dropdowns_on_close, handle_open_folder)
-from handlers_files import (_render_file_list, load_folder_file_list,
+from handlers.files import (_render_file_list, load_folder_file_list,
     handle_upload_files, handle_remove_selected, handle_clear_file_list,
     handle_file_selection, on_file_select)
 from config import OLLAMA_MODEL
-from handlers_ai import (handle_transcribe, handle_correct, handle_load_transcripts,
+from handlers.ai import (handle_transcribe, handle_correct, handle_load_transcripts,
     handle_summarize, handle_pipeline, handle_file_list_process,
     refresh_ollama_models, list_audio_devices, get_input_device_choices)
 

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import gradio as gr
 
-import categories as cat_mod
-import storage
+import data.categories as cat_mod
+import data.storage as storage
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────
@@ -31,11 +31,6 @@ def _path_html(data: list, l1, l2, l3) -> str:
 def _out_dir(data: list, l1, l2, l3):
     n1, n2, n3 = (cat_mod.get_name(data, x) for x in (l1, l2, l3))
     return storage.resolve_out_dir(n1, n2, n3)
-
-
-def _wav_dir(data: list, l1, l2, l3):
-    n1, n2, n3 = (cat_mod.get_name(data, x) for x in (l1, l2, l3))
-    return storage.resolve_wav_dir(n1, n2, n3)
 
 
 # ── 패널 열기/닫기 ──────────────────────────────────────────

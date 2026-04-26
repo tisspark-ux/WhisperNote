@@ -4,7 +4,7 @@ import threading
 from collections import deque
 from pathlib import Path
 
-from instances import transcriber, summarizer
+from lib.instances import transcriber, summarizer
 
 
 def _fmt_sec(secs: float) -> str:

@@ -3,9 +3,9 @@
 여러 핸들러 모듈에서 동일 인스턴스를 참조해야 하므로
 한 곳에서 생성 후 공유한다.
 """
-from recorder import AudioRecorder, is_loopback_device_name, is_rdp_device_name
-from transcriber import Transcriber
-from summarizer import Summarizer
+from core.recorder import AudioRecorder, is_loopback_device_name, is_rdp_device_name
+from core.transcriber import Transcriber
+from core.summarizer import Summarizer
 
 recorder    = AudioRecorder()
 transcriber = Transcriber()

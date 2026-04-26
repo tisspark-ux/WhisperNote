@@ -3,9 +3,9 @@ from pathlib import Path
 
 import gradio as gr
 
-from instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
-from worker import auto_worker
-from handlers_category import _out_dir, _wav_dir
+from lib.instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
+from lib.worker import auto_worker
+from handlers.category import _out_dir
 
 
 def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
@@ -19,7 +19,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
             msg, "",
         )
 
-    out_dir   = _wav_dir(cat_data_val, l1_id, l2_id, l3_id)
+    out_dir   = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
     chunk_min = int(chunk_minutes or 0)
 
     if device_idx == WASAPI_AUTO:

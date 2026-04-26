@@ -8,7 +8,7 @@ from config import (
     OLLAMA_TIMEOUT,
     OUTPUTS_DIR,
 )
-from prompts import get_correction_prompt, get_summary_prompt
+from data.prompts import get_correction_prompt, get_summary_prompt
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
 

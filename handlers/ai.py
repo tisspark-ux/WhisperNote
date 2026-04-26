@@ -5,11 +5,11 @@ import gradio as gr
 import sounddevice as sd
 
 from config import OLLAMA_MODEL
-from instances import recorder, transcriber, summarizer, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
-from recorder import is_loopback_device_name, is_rdp_device_name
-from worker import auto_worker
-from handlers_category import _out_dir
-import prompts
+from lib.instances import recorder, transcriber, summarizer, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
+from core.recorder import is_loopback_device_name, is_rdp_device_name
+from lib.worker import auto_worker
+from handlers.category import _out_dir
+import data.prompts as prompts
 
 
 def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
