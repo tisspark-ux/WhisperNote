@@ -114,7 +114,7 @@ v1.0.49 (2026-04-26)
     6. core/download_whisper.py: _dir/sys.path/models_dir 경로 오류 (core/ → 루트)
        — Path(__file__).parent → .parent.parent
     7. install.bat / install_whisper.bat: download_whisper.py 호출 경로 오류
-       — %~dp0download_whisper.py → %~dp0core\download_whisper.py
+       — %~dp0download_whisper.py → %~dp0core/download_whisper.py
 
 v1.0.48 (2026-04-26)
   - [리팩토링] 폴더 구조 재편: Python 파일을 core/lib/handlers/data/ 하위로 이동
