@@ -42,7 +42,7 @@ from handlers.category import (
     on_panel_l1, on_panel_l2, on_panel_l3,
     on_l1_change, on_l2_change, on_l3_change,
     cat_start_add, cat_start_edit, cat_cancel, cat_confirm, cat_delete,
-    init_cat_ui, sync_dropdowns_on_close, handle_open_folder)
+    init_cat_ui, init_cat_with_last_state, sync_dropdowns_on_close, handle_open_folder)
 from handlers.files import (_render_file_list, load_folder_file_list,
     handle_upload_files, handle_remove_selected, handle_clear_file_list,
     handle_file_selection, on_file_select)
@@ -508,7 +508,12 @@ python app.py
     demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
     demo.load(fn=None, js=_LEVEL_JS)
     demo.load(fn=None, js=_FILE_LIST_JS)
-    demo.load(init_cat_ui, inputs=[cat_data], outputs=[cat_l1, cat1_radio])
+    demo.load(
+        init_cat_with_last_state,
+        inputs=[cat_data],
+        outputs=[cat_l1, cat1_radio, cat_l2, cat_l3, cat_path_display,
+                 file_list_display, file_paths, file_count_label],
+    )
     demo.load(lambda: gr.update(choices=prompts.list_summary_types()), outputs=[summary_type])
 
     # 분류 설정 패널 열기/닫기
