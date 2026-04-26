@@ -120,8 +120,11 @@ def diarize(
     n = len(emb_matrix)
     if num_speakers is None:
         k = _estimate_num_speakers(emb_matrix)
+    elif num_speakers == 1:
+        k = 1  # 단일 화자 강제
     else:
-        k = max(1, min(num_speakers, n))
+        # 사용자 지정값을 상한으로, 실제 화자 수는 자동 추정
+        k = _estimate_num_speakers(emb_matrix, max_speakers=num_speakers)
 
     # 클러스터링
     if k == 1 or n == 1:

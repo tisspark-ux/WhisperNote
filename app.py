@@ -270,6 +270,14 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         step=10,
                         scale=1,
                     )
+                    num_speakers_dd = gr.Dropdown(
+                        label="화자 수",
+                        choices=["자동", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                        value="자동",
+                        interactive=True,
+                        elem_classes="wn-dropdown",
+                        scale=1,
+                    )
                     summary_type = gr.Dropdown(
                         label="요약 구분",
                         choices=prompts.list_summary_types(),
@@ -563,7 +571,7 @@ python app.py
     btn_start.click(
         handle_start_recording,
         inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3, chunk_minutes_input,
-                ollama_model, summary_type],
+                ollama_model, summary_type, num_speakers_dd],
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
@@ -635,7 +643,7 @@ python app.py
     # 전사/교정/요약/파이프라인
     btn_transcribe.click(
         handle_transcribe,
-        inputs=[recorded_file, uploaded_file] + _cat_inputs,
+        inputs=[recorded_file, uploaded_file] + _cat_inputs + [num_speakers_dd],
         outputs=[transcript_output, transcript_file_path, merged_stem_state, pipeline_status,
                  text_display, display_file_path, view_radio, correction_output, corrected_file_path],
     ).then(
@@ -651,7 +659,7 @@ python app.py
     )
     btn_pipeline.click(
         handle_pipeline,
-        inputs=[recorded_file, uploaded_file, ollama_model, summary_type] + _cat_inputs,
+        inputs=[recorded_file, uploaded_file, ollama_model, summary_type] + _cat_inputs + [num_speakers_dd],
         outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path,
                  pipeline_status, merged_stem_state,
                  text_display, display_file_path, view_radio, correction_output, corrected_file_path],

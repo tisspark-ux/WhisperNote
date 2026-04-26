@@ -163,6 +163,7 @@ class Transcriber:
         audio_path: str,
         on_progress: Callable[[float, str], None] | None = None,
         output_dir=None,
+        num_speakers: int | None = None,
     ) -> tuple[str, str]:
         """
         WhisperX 로 오디오 파일을 전사한다.
@@ -252,7 +253,9 @@ class Transcriber:
             try:
                 _progress(0.88, "화자 분리 중...")
                 from . import diarizer
-                segments = diarizer.diarize(audio_path, segments, num_speakers=NUM_SPEAKERS)
+                # UI 지정값 우선, 없으면 config.NUM_SPEAKERS 사용
+                ns = num_speakers if num_speakers is not None else NUM_SPEAKERS
+                segments = diarizer.diarize(audio_path, segments, num_speakers=ns)
                 diarization_ok = True
                 print("[전사] 화자 분리 완료", flush=True)
             except Exception as exc:

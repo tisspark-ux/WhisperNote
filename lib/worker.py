@@ -25,6 +25,7 @@ class AutoTranscriptionWorker:
         self._out_dir: Path | None = None
         self._model_name: str | None = None
         self._summary_type: str = "회의"
+        self._num_speakers: int | None = None
         self._lock = threading.Lock()
         self._current_label: str | None = None
         self._pending_labels: list = []
@@ -34,11 +35,13 @@ class AutoTranscriptionWorker:
 
     # ── 세션 초기화 ──────────────────────────────────────────
     def reset(self, combined_path: Path | None, out_dir: Path | None,
-              model_name: str | None = None, summary_type: str = "회의"):
+              model_name: str | None = None, summary_type: str = "회의",
+              num_speakers: int | None = None):
         self._combined_path = combined_path
         self._out_dir = out_dir
         self._model_name = model_name
         self._summary_type = summary_type
+        self._num_speakers = num_speakers
         self._corrected_path = None
         with self._lock:
             self._current_label = None
@@ -150,7 +153,7 @@ class AutoTranscriptionWorker:
         has_parts  = job["has_parts"]
 
         transcript_text, part_file = transcriber.transcribe(
-            wav_path, output_dir=self._out_dir
+            wav_path, output_dir=self._out_dir, num_speakers=self._num_speakers
         )
 
         if has_parts:

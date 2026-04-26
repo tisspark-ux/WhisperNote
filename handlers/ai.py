@@ -20,17 +20,20 @@ def _resolve_audio(recorded: str, uploaded: str | None) -> str | None:
 
 def handle_transcribe(recorded: str, uploaded: str | None,
                       cat_data_val, l1_id, l2_id, l3_id,
+                      num_speakers_val="자동",
                       progress=gr.Progress()):
     _no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", *_no
+    ns = None if (not num_speakers_val or num_speakers_val == "자동") else int(num_speakers_val)
     try:
         progress(0.1, desc="전사 시작...")
         transcript, out_file = transcriber.transcribe(
             audio,
             on_progress=lambda pct, m: progress(pct, desc=m),
             output_dir=_out_dir(cat_data_val, l1_id, l2_id, l3_id),
+            num_speakers=ns,
         )
         progress(1.0, desc="전사 완료!")
         return (
@@ -136,12 +139,14 @@ def handle_pipeline(
     model_name: str,
     summary_type_val: str,
     cat_data_val, l1_id, l2_id, l3_id,
+    num_speakers_val="자동",
     progress=gr.Progress(),
 ):
     _disp_no = (gr.update(), gr.update(), gr.update(), gr.update(), gr.update())
     audio = _resolve_audio(recorded, uploaded)
     if not audio:
         return "", "", "", "", "오디오 파일을 선택하거나 먼저 녹음하세요.", "", *_disp_no
+    ns = None if (not num_speakers_val or num_speakers_val == "자동") else int(num_speakers_val)
     out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
     audio_stem = Path(audio).stem
     try:
@@ -150,6 +155,7 @@ def handle_pipeline(
             audio,
             on_progress=lambda pct, m: progress(pct * 0.65, desc=m),
             output_dir=out_dir,
+            num_speakers=ns,
         )
         if not transcript:
             return "", t_file, "", "", "전사 결과가 비어 있습니다.", "", *_disp_no
@@ -192,6 +198,7 @@ def handle_file_list_process(
     model_name: str,
     summary_type_val: str,
     cat_data_val, l1_id, l2_id, l3_id,
+    num_speakers_val="자동",
     progress=gr.Progress(),
 ):
     """파일 목록에서 선택된 파일 처리. outputs: 11개."""
@@ -210,9 +217,9 @@ def handle_file_list_process(
         audio = selected[0]
         if action == "pipeline":
             return handle_pipeline(audio, None, model_name, summary_type_val,
-                                   cat_data_val, l1_id, l2_id, l3_id, progress)
+                                   cat_data_val, l1_id, l2_id, l3_id, num_speakers_val, progress)
         elif action == "transcribe":
-            res = handle_transcribe(audio, None, cat_data_val, l1_id, l2_id, l3_id, progress)
+            res = handle_transcribe(audio, None, cat_data_val, l1_id, l2_id, l3_id, num_speakers_val, progress)
             return (
                 res[0], res[1],
                 gr.update(), gr.update(),
@@ -224,11 +231,13 @@ def handle_file_list_process(
     else:
         audio_stem_base = Path(selected[0]).stem
         combined_path = out_dir / f"{audio_stem_base}_merged_transcript.txt"
+        ns = None if (not num_speakers_val or num_speakers_val == "자동") else int(num_speakers_val)
         auto_worker.reset(
             combined_path=combined_path,
             out_dir=out_dir,
             model_name=model_name,
             summary_type=summary_type_val if action == "pipeline" else "회의",
+            num_speakers=ns,
         )
         for path in selected:
             auto_worker.enqueue_file(path)

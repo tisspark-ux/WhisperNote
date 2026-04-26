@@ -9,7 +9,8 @@ from handlers.category import _out_dir
 
 
 def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
-                            chunk_minutes, model_name, summary_type_val):
+                            chunk_minutes, model_name, summary_type_val,
+                            num_speakers_val="자동"):
     def _fail(msg):
         return (
             gr.update(interactive=True),
@@ -66,11 +67,13 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
         p = Path(file_path)
         base = p.stem.split("_part")[0]
         transcript_out = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
+        ns = None if (not num_speakers_val or num_speakers_val == "자동") else int(num_speakers_val)
         auto_worker.reset(
             combined_path=transcript_out / f"{base}_transcript.txt",
             out_dir=transcript_out,
             model_name=model_name,
             summary_type=summary_type_val,
+            num_speakers=ns,
         )
         return (
             gr.update(interactive=False),
