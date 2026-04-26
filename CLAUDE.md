@@ -81,19 +81,6 @@ Plan files (plan mode) must also be written in Korean.
 - 사용자 승인 후에만 실제 코드 수정 진행
 - 간단한 수정(오타, 주석, 1줄 이내 명백한 수정 등)은 계획 생략 가능
 
-## 피처 브랜치 → main 머지 규칙
-
-**피처 브랜치에 커밋한 뒤에는 반드시 그 세션 안에서 main에 머지하고 푸시까지 완료할 것.**
-
-머지를 미루면 main에 다른 커밋이 쌓여 버전 번호가 충돌한다.
-
-순서:
-1. 피처 브랜치에 커밋 + 푸시
-2. `git checkout main`
-3. `git merge <피처 브랜치>` — 충돌 시 즉시 해결
-4. `git push origin main`
-5. 충돌이 발생한 경우: version.py는 현재 main 버전보다 1 높은 번호로 bump하고 두 브랜치 항목을 통합
-
 ## 수정 후 영향도 체크 및 커밋 규칙
 
 모든 수정 작업은 아래 순서를 반드시 따를 것:
@@ -127,3 +114,5 @@ Commit message convention:
 - `feat: <description>` — new feature (MINOR bump)
 - `fix: <description>` — bug fix (PATCH bump)
 - `chore: <description>` — tooling, docs, no functional change (PATCH bump)
+
+Merge conflict rule: version.py 충돌 시 현재 main 버전보다 1 높은 번호로 bump하고 두 브랜치 CHANGELOG 항목을 통합할 것.
