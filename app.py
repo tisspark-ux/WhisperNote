@@ -666,9 +666,15 @@ python app.py
                 ollama_model, merged_stem_state, summary_type] + _cat_inputs,
         outputs=[summary_output, summary_file_path, pipeline_status],
     )
+    def _fl_pipeline(sel, fps, model, stype, cat, l1, l2, l3, ns, rec, up,
+                     progress=gr.Progress()):
+        return handle_file_list_process(
+            sel, fps, "pipeline", model, stype, cat, l1, l2, l3, ns, rec, up, progress)
+
     btn_pipeline.click(
-        handle_pipeline,
-        inputs=[recorded_file, uploaded_file, ollama_model, summary_type] + _cat_inputs + [num_speakers_dd],
+        _fl_pipeline,
+        inputs=[selected_paths, file_paths, ollama_model, summary_type]
+               + _cat_inputs + [num_speakers_dd, recorded_file, uploaded_file],
         outputs=[transcript_output, transcript_file_path, summary_output, summary_file_path,
                  pipeline_status, merged_stem_state,
                  text_display, display_file_path, view_radio, correction_output, corrected_file_path],
