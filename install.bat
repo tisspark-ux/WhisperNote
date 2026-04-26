@@ -52,7 +52,7 @@ if not errorlevel 1 (
     goto torch_done
 )
 echo   Installing PyTorch with CUDA 12.4 (may take several minutes)...
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 2>> %LOG%
+%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --no-cache-dir --trusted-host download.pytorch.org --trusted-host files.pythonhosted.org --trusted-host pypi.org 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] PyTorch installation failed. Error details:
     type %LOG%
