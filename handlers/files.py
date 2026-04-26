@@ -2,7 +2,7 @@
 import json
 from pathlib import Path
 
-from handlers_category import _out_dir, _wav_dir
+from handlers.category import _out_dir
 
 
 def _scan_audio_files(folder) -> list:
@@ -32,10 +32,7 @@ def _render_file_list(paths: list) -> str:
 def load_folder_file_list(cat_data_val, l1_id, l2_id, l3_id):
     """분류 폴더 기반 파일 목록 로드."""
     folder = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
-    wav_folder = _wav_dir(cat_data_val, l1_id, l2_id, l3_id)
-    paths = _scan_audio_files(wav_folder)
-    if wav_folder != folder:
-        paths += _scan_audio_files(folder)
+    paths = _scan_audio_files(folder)
     paths = sorted(set(paths), key=lambda p: Path(p).name.lower())
     html = _render_file_list(paths)
     count = f"전체 {len(paths)}개" if paths else ""

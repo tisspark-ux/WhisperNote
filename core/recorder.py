@@ -12,11 +12,11 @@ from config import (
     CHANNELS,
     INPUT_SOURCE,
     LOOPBACK_DEVICE_INDEX,
-    RECORDINGS_DIR,
+    UNCATEGORIZED_DIR,
     SAMPLE_RATE,
 )
 
-RECORDINGS_DIR.mkdir(exist_ok=True)
+UNCATEGORIZED_DIR.mkdir(parents=True, exist_ok=True)
 
 _LOOPBACK_KEYWORDS = (
     "loopback",
@@ -408,7 +408,7 @@ class AudioRecorder:
             return None, "이미 녹음 중입니다."
 
         # 공통 파일 경로 초기화
-        wav_dir = output_dir if output_dir is not None else RECORDINGS_DIR
+        wav_dir = output_dir if output_dir is not None else UNCATEGORIZED_DIR
         wav_dir.mkdir(parents=True, exist_ok=True)
         self._wav_dir_ref = wav_dir
         self._base_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
