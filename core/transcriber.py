@@ -198,10 +198,10 @@ class Transcriber:
             beam_size=WHISPER_BEAM_SIZE,
             vad_filter=WHISPER_VAD_FILTER,
             initial_prompt=WHISPER_INITIAL_PROMPT,
-            temperature=0,
+            temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
             condition_on_previous_text=False,
             no_speech_threshold=0.5,
-            compression_ratio_threshold=1.8,
+            compression_ratio_threshold=1.35,
             log_prob_threshold=-1.0,
         )
         dur = fw_info.duration or 1.0

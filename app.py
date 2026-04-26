@@ -530,9 +530,12 @@ python app.py
     cat3_radio.change(on_panel_l3, inputs=[cat_data, cat1_radio, cat2_radio, cat3_radio], outputs=[cat_l3, cat_path_display])
 
     # 메인 드롭다운 cascade
-    cat_l1.change(on_l1_change, inputs=[cat_data, cat_l1], outputs=[cat_l2, cat_l3, cat_path_display])
-    cat_l2.change(on_l2_change, inputs=[cat_data, cat_l1, cat_l2], outputs=[cat_l3, cat_path_display])
-    cat_l3.change(on_l3_change, inputs=[cat_data, cat_l1, cat_l2, cat_l3], outputs=[cat_path_display])
+    cat_l1.change(on_l1_change, inputs=[cat_data, cat_l1],
+                  outputs=[cat_l2, cat_l3, cat_path_display, file_list_display, file_paths, file_count_label])
+    cat_l2.change(on_l2_change, inputs=[cat_data, cat_l1, cat_l2],
+                  outputs=[cat_l3, cat_path_display, file_list_display, file_paths, file_count_label])
+    cat_l3.change(on_l3_change, inputs=[cat_data, cat_l1, cat_l2, cat_l3],
+                  outputs=[cat_path_display, file_list_display, file_paths, file_count_label])
 
     # 추가 버튼
     _add_out = [cat_edit_ctx, cat_input_row, cat_input, cat_panel_msg]
@@ -582,6 +585,10 @@ python app.py
     btn_stop.click(
         handle_stop_recording,
         outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
+    ).then(
+        load_folder_file_list,
+        inputs=[cat_data, cat_l1, cat_l2, cat_l3],
+        outputs=[file_list_display, file_paths, file_count_label],
     )
     btn_pause.click(handle_pause_resume, outputs=[btn_pause, record_status])
     _poll_outputs = [
@@ -592,8 +599,13 @@ python app.py
         chunk_poll_timer,
         text_display, view_radio, display_file_path,
         summary_output, summary_file_path,
+        file_list_display, file_paths, file_count_label,
     ]
-    chunk_poll_timer.tick(handle_chunk_poll, inputs=[view_radio], outputs=_poll_outputs)
+    chunk_poll_timer.tick(
+        handle_chunk_poll,
+        inputs=[view_radio, cat_data, cat_l1, cat_l2, cat_l3],
+        outputs=_poll_outputs,
+    )
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
     btn_open_folder.click(handle_open_folder, inputs=[recorded_file])
@@ -602,14 +614,6 @@ python app.py
 
     # 전사/교정/요약/파이프라인 공통 입력
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
-
-    # 분류 변경 시 파일 목록 자동 갱신
-    for _cat_dd in [cat_l1, cat_l2, cat_l3]:
-        _cat_dd.change(
-            load_folder_file_list,
-            inputs=_cat_inputs,
-            outputs=[file_list_display, file_paths, file_count_label],
-        )
 
     # 파일 목록
     btn_fl_reload.click(
