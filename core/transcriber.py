@@ -77,7 +77,7 @@ class Transcriber:
     @staticmethod
     def _is_model_cached() -> bool:
         """faster-whisper 모델이 로컬 캐시에 있는지 확인."""
-        models_dir = Path(__file__).parent / "models"
+        models_dir = Path(__file__).parent.parent / "models"
         return any(models_dir.rglob("model.bin")) or any(models_dir.rglob("model.safetensors"))
 
     def _load_model(self):
@@ -107,7 +107,7 @@ class Transcriber:
                     WHISPER_MODEL,
                     device=self.device,
                     compute_type=self.compute_type,
-                    download_root=str(Path(__file__).parent / "models"),
+                    download_root=str(Path(__file__).parent.parent / "models"),
                 )
 
             print("[전사] 모델 로딩 완료", flush=True)
@@ -148,7 +148,7 @@ class Transcriber:
                 WHISPER_MODEL,
                 device=self.device,
                 compute_type=self.compute_type,
-                download_root=str(Path(__file__).parent / "models"),
+                download_root=str(Path(__file__).parent.parent / "models"),
             )
         finally:
             _tqdm_mod.tqdm = _orig_tqdm
@@ -251,7 +251,7 @@ class Transcriber:
         if ENABLE_DIARIZATION and segments:
             try:
                 _progress(0.88, "화자 분리 중...")
-                import diarizer
+                from . import diarizer
                 segments = diarizer.diarize(audio_path, segments, num_speakers=NUM_SPEAKERS)
                 diarization_ok = True
                 print("[전사] 화자 분리 완료", flush=True)

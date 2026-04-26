@@ -88,7 +88,7 @@ echo   Packages installed.
 
 rem Whisper model pre-download (download only, no model loading)
 echo [4/5] Downloading Whisper model (first time only, may take several minutes)...
-%PYTHON% %~dp0download_whisper.py 2>> %LOG%
+%PYTHON% %~dp0core\download_whisper.py 2>> %LOG%
 if errorlevel 1 (
     echo [WARN] Whisper model download failed.
     echo   Will retry automatically on first transcription.

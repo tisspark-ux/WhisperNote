@@ -113,7 +113,7 @@ print(f"Python : {sys.version.split()[0]}  ({sys.executable})")
 print(f"CWD    : {os.getcwd()}")
 print()
 
-_dir = Path(__file__).parent
+_dir = Path(__file__).parent.parent  # 프로젝트 루트 (config.py 위치)
 sys.path.insert(0, str(_dir))
 
 try:
@@ -144,7 +144,7 @@ print()
 # ---------------------------------------------------------------------------
 # Cache check
 # ---------------------------------------------------------------------------
-models_dir = _dir / "models"
+models_dir = _dir / "models"  # 프로젝트 루트/models/
 models_dir.mkdir(exist_ok=True)
 
 cached = any(models_dir.rglob("model.bin")) or any(

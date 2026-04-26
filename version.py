@@ -1,4 +1,4 @@
-__version__ = "1.0.48"
+__version__ = "1.0.49"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -92,6 +92,23 @@ __version__ = "1.0.48"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.49 (2026-04-26)
+  - [수정] v1.0.48 리팩토링으로 생긴 버그 5종 일괄 수정
+    1. lib/patches.py: HF_HOME/TORCH_HOME 경로 오류 (lib/models/ → models/)
+       — Path(__file__).parent → .parent.parent (프로젝트 루트)
+    2. lib/patches.py: Windows WinError 1314 심볼릭 링크 권한 오류
+       — os.symlink 패치: 실패 시 os.link → shutil.copy2 폴백
+    3. lib/patches.py: HF_HUB_DISABLE_SSL_VERIFICATION 환경변수 추가
+       — 앱 실행 중 모델 다운로드 시에도 SSL 우회 적용
+    4. core/transcriber.py: download_root/models_dir 경로 오류 3곳 (core/models/ → models/)
+       — _is_model_cached, _load_model, _load_with_progress 모두 .parent.parent 로 수정
+    5. core/transcriber.py: import diarizer 실패 (루트에 없음)
+       — from . import diarizer 상대 임포트로 변경
+    6. core/download_whisper.py: _dir/sys.path/models_dir 경로 오류 (core/ → 루트)
+       — Path(__file__).parent → .parent.parent
+    7. install.bat / install_whisper.bat: download_whisper.py 호출 경로 오류
+       — %~dp0download_whisper.py → %~dp0core\download_whisper.py
+
 v1.0.48 (2026-04-26)
   - [리팩토링] 폴더 구조 재편: Python 파일을 core/lib/handlers/data/ 하위로 이동
     - core/: recorder, transcriber, diarizer, summarizer, download_whisper

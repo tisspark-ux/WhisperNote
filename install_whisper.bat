@@ -21,7 +21,7 @@ set LOG=%~dp0whisper_install.log
 echo Log file: %LOG%
 echo.
 
-%PYTHON% %~dp0download_whisper.py --log %LOG%
+%PYTHON% %~dp0core\download_whisper.py --log %LOG%
 
 if errorlevel 1 (
     echo.

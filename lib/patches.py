@@ -21,9 +21,27 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# WhisperX 모델 캐시를 프로젝트 내 models/ 폴더로 지정
-os.environ.setdefault("HF_HOME", str(Path(__file__).parent / "models"))
-os.environ.setdefault("TORCH_HOME", str(Path(__file__).parent / "models"))
+# WhisperX 모델 캐시를 프로젝트 루트 models/ 폴더로 지정
+# lib/patches.py 는 lib/ 안에 있으므로 .parent.parent 로 프로젝트 루트 참조
+_PROJECT_ROOT = Path(__file__).parent.parent
+os.environ.setdefault("HF_HOME", str(_PROJECT_ROOT / "models"))
+os.environ.setdefault("TORCH_HOME", str(_PROJECT_ROOT / "models"))
+os.environ.setdefault("HF_HUB_DISABLE_SSL_VERIFICATION", "1")
+
+# Windows: HuggingFace Hub 내부 symlink 생성에 관리자 권한 또는 개발자 모드 필요
+# 권한 없을 때(WinError 1314) 하드링크 → 파일 복사 순으로 폴백
+if sys.platform == "win32":
+    import shutil as _shutil
+    _orig_symlink = os.symlink
+    def _safe_symlink(src, dst, target_is_directory=False, *, dir_fd=None):
+        try:
+            _orig_symlink(src, dst, target_is_directory=target_is_directory, dir_fd=dir_fd)
+        except OSError:
+            try:
+                os.link(src, dst)
+            except OSError:
+                _shutil.copy2(src, dst)
+    os.symlink = _safe_symlink
 
 # 회사 프록시에서 localhost 제외
 for _k in ("no_proxy", "NO_PROXY"):
