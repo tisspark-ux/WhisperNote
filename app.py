@@ -125,35 +125,46 @@ _LEVEL_JS = """() => {
 }"""
 
 _FILE_LIST_JS = """() => {
-  function setupFileList() {
+  var selected = [];
+
+  // document 에 위임 — Gradio가 #wn-file-list HTML 전체를 교체해도 리스너 유지
+  document.addEventListener('click', function(e) {
+    var item = e.target.closest('.wn-file-item');
+    if (!item) return;
     var list = document.getElementById('wn-file-list');
-    if (!list) { setTimeout(setupFileList, 500); return; }
-    var selected = [];
-    list.addEventListener('click', function(e) {
-      var item = e.target.closest('.wn-file-item');
-      if (!item) return;
-      var path = item.dataset.path;
-      if (e.ctrlKey || e.metaKey) {
-        var idx = selected.indexOf(path);
-        if (idx >= 0) { selected.splice(idx, 1); item.classList.remove('selected'); }
-        else { selected.push(path); item.classList.add('selected'); }
-      } else {
-        list.querySelectorAll('.wn-file-item.selected').forEach(function(el) { el.classList.remove('selected'); });
-        selected = [path];
-        item.classList.add('selected');
+    if (!list || !list.contains(item)) return;
+
+    var path = item.dataset.path;
+    if (e.ctrlKey || e.metaKey) {
+      var idx = selected.indexOf(path);
+      if (idx >= 0) { selected.splice(idx, 1); item.classList.remove('selected'); }
+      else { selected.push(path); item.classList.add('selected'); }
+    } else {
+      list.querySelectorAll('.wn-file-item.selected').forEach(function(el) { el.classList.remove('selected'); });
+      selected = [path];
+      item.classList.add('selected');
+    }
+
+    var tb = document.querySelector('#wn-selected-paths textarea');
+    if (!tb) return;
+    var setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
+    setter.call(tb, JSON.stringify(selected));
+    tb.dispatchEvent(new Event('input', {bubbles: true}));
+    tb.dispatchEvent(new Event('change', {bubbles: true}));
+  });
+
+  // document.body 감시 — #wn-file-list 교체 시 선택 초기화
+  new MutationObserver(function(mutations) {
+    for (var m of mutations) {
+      for (var node of m.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        if (node.id === 'wn-file-list' || (node.querySelector && node.querySelector('#wn-file-list'))) {
+          selected = [];
+          return;
+        }
       }
-      var tb = document.querySelector('#wn-selected-paths textarea');
-      if (tb) {
-        var setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set;
-        setter.call(tb, JSON.stringify(selected));
-        tb.dispatchEvent(new Event('input', {bubbles: true}));
-        tb.dispatchEvent(new Event('change', {bubbles: true}));
-      }
-    });
-    var obs = new MutationObserver(function() { selected = []; });
-    obs.observe(list, {childList: true});
-  }
-  setupFileList();
+    }
+  }).observe(document.body, {childList: true, subtree: true});
 }"""
 
 
