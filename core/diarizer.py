@@ -17,24 +17,48 @@ def _load_encoder():
 
 
 def _estimate_num_speakers(embeddings: np.ndarray, max_speakers: int = 8) -> int:
-    """Eigenvalue gap heuristic 으로 화자 수 자동 추정."""
+    """화자 수 자동 추정.
+
+    1단계: 평균 코사인 유사도로 단일 화자 여부 사전 판정
+    2단계: Normalized Laplacian eigenvalue gap heuristic
+    3단계: heuristic 이 1명으로 판정했지만 유사도가 낮으면 최소 2명으로 보정
+    """
     from sklearn.metrics.pairwise import cosine_similarity
 
     n = len(embeddings)
     if n <= 1:
         return 1
+
+    sim_matrix = cosine_similarity(embeddings)
+
     if n == 2:
+        # 두 임베딩이 매우 유사하면 1명, 아니면 2명
+        return 1 if float(sim_matrix[0, 1]) > 0.90 else 2
+
+    # 대각선 제외 평균 유사도
+    mask = ~np.eye(n, dtype=bool)
+    mean_sim = float(sim_matrix[mask].mean())
+
+    # 유사도가 매우 높으면 단일 화자로 확정
+    if mean_sim > 0.93:
+        return 1
+
+    # Normalized Laplacian eigenvalue gap heuristic
+    sim_clipped = np.clip(sim_matrix, 0, 1)
+    d = sim_clipped.sum(axis=1)
+    d_inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(d, 1e-10)))
+    laplacian = np.eye(n) - d_inv_sqrt @ sim_clipped @ d_inv_sqrt
+
+    k_limit = min(max_speakers + 1, n)
+    eigenvalues = np.sort(np.linalg.eigvalsh(laplacian))[:k_limit]
+    gaps = np.diff(eigenvalues)
+    k_est = int(np.argmax(gaps) + 1)
+
+    # heuristic 이 1명으로 판정했지만 평균 유사도가 낮으면 → 최소 2명
+    if k_est == 1 and mean_sim < 0.88:
         return 2
 
-    sim = np.clip(cosine_similarity(embeddings), 0, 1)
-    d = sim.sum(axis=1)
-    d_inv_sqrt = np.diag(1.0 / np.sqrt(np.maximum(d, 1e-10)))
-    laplacian = np.eye(n) - d_inv_sqrt @ sim @ d_inv_sqrt
-
-    k = min(max_speakers + 1, n)
-    eigenvalues = np.sort(np.linalg.eigvalsh(laplacian))[:k]
-    gaps = np.diff(eigenvalues)
-    return int(np.argmax(gaps) + 1)
+    return k_est
 
 
 def diarize(
