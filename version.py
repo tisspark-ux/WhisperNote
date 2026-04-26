@@ -31,12 +31,6 @@ __version__ = "1.0.55"
 #     summarizer.py      — Ollama HTTP 요약/교정 (prompts/ 파일 사용)
 #     download_whisper.py— Whisper 모델 단독 다운로드 스크립트
 #
-#   lib/
-#     patches.py         — 앱 시작 시 가장 먼저 실행: SSL/프록시/Gradio 4.x 버그 패치
-#     instances.py       — recorder·transcriber·summarizer 공유 싱글턴 + sentinel 상수
-#     worker.py          — AutoTranscriptionWorker: 백그라운드 전사→교정→요약 대기열
-#     styles.py          — Gradio 커스텀 CSS
-#
 #   handlers/
 #     recording.py       — 녹음 시작/종료/일시정지/마이크 테스트/청크 폴링 핸들러
 #     category.py        — 3단계 분류 패널 (Miller Column) CRUD + 드롭다운 연동
@@ -47,6 +41,14 @@ __version__ = "1.0.55"
 #     categories.py      — 분류 트리 CRUD (categories.json 영속화)
 #     storage.py         — 카테고리 → 출력 경로 변환 (outputs/L1/L2/L3/)
 #     prompts.py         — 프롬프트 파일 관리 (prompts/ 폴더, 요약/교정 구분)
+#     state.py           — 마지막 선택 분류 영속화 (last_state.json)
+#
+#   lib/
+#     patches.py         — 앱 시작 시 가장 먼저 실행: SSL/프록시/Gradio 4.x 버그 패치
+#     instances.py       — recorder·transcriber·summarizer 공유 싱글턴 + sentinel 상수
+#     worker.py          — AutoTranscriptionWorker: 백그라운드 전사→교정→요약 대기열
+#     styles.py          — Gradio 커스텀 CSS
+#     logger.py          — 공유 로거: logs/whispernote.log (INFO/DEBUG 레벨)
 #
 #   outputs/             — 녹음·전사·요약 파일 저장 루트
 #     uncategorized/     — 분류 미선택 시 기본 저장 위치
@@ -55,7 +57,9 @@ __version__ = "1.0.55"
 #     summary/{회의,면담,보고서 리뷰}.txt  — 요약 프롬프트 (앱 실행 시 자동 생성)
 #     correction/교정.txt                  — 교정 프롬프트
 #   models/              — HuggingFace 캐시 (HF_HOME 재지정, large-v3-turbo ~1.6GB)
-#   logs/                — 날짜별 에러 로그 (YYYY-MM-DD.log)
+#   logs/
+#     YYYY-MM-DD.log     — 날짜별 미처리 예외 에러 로그
+#     whispernote.log    — 화자분리 등 주요 처리 디버그 로그 (INFO/DEBUG)
 #
 # [sentinel 상수 (lib/instances.py)]
 #   LOOPBACK_AUTO = -2   : 루프백 장치 자동 감지
