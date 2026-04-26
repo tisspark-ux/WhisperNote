@@ -6,6 +6,7 @@ import gradio as gr
 
 import data.categories as cat_mod
 import data.storage as storage
+from data.state import load_last_category, save_last_category
 
 
 # ── 헬퍼 ──────────────────────────────────────────────────
@@ -82,16 +83,19 @@ def on_panel_l3(data, l1_id, l2_id, l3_id):
 # ── 메인 드롭다운 cascade ──────────────────────────────────
 
 def on_l1_change(data, l1_id):
+    save_last_category(l1_id, None, None)
     l2_ch = _cat_choices(data, l1_id)
     return gr.update(choices=l2_ch, value=None), gr.update(choices=[], value=None), _path_html(data, l1_id, None, None)
 
 
 def on_l2_change(data, l1_id, l2_id):
+    save_last_category(l1_id, l2_id, None)
     l3_ch = _cat_choices(data, l2_id)
     return gr.update(choices=l3_ch, value=None), _path_html(data, l1_id, l2_id, None)
 
 
 def on_l3_change(data, l1_id, l2_id, l3_id):
+    save_last_category(l1_id, l2_id, l3_id)
     return _path_html(data, l1_id, l2_id, l3_id)
 
 
@@ -183,6 +187,58 @@ def cat_delete(data, col, item_id, l1_id, l2_id, l3_id):
 def init_cat_ui(data):
     ch = _cat_choices(data, None)
     return gr.update(choices=ch, value=None), gr.update(choices=ch, value=None)
+
+
+def init_cat_with_last_state(data):
+    """앱 시작 시 마지막 분류 복원 + 파일 목록 초기화.
+
+    outputs (8):
+      cat_l1, cat1_radio,
+      cat_l2, cat_l3,
+      cat_path_display,
+      file_list_display, file_paths, file_count_label
+    """
+    from handlers.files import load_folder_file_list
+
+    ch = _cat_choices(data, None)
+    state = load_last_category()
+    l1_id = state.get("l1")
+    l2_id = state.get("l2")
+    l3_id = state.get("l3")
+
+    # 존재하는 항목인지 검증
+    l1_ids = [i for _, i in ch]
+    if l1_id not in l1_ids:
+        l1_id = l2_id = l3_id = None
+
+    if l1_id is not None:
+        l2_ch = _cat_choices(data, l1_id)
+        l2_ids = [i for _, i in l2_ch]
+        if l2_id not in l2_ids:
+            l2_id = l3_id = None
+    else:
+        l2_ch = []
+
+    if l2_id is not None:
+        l3_ch = _cat_choices(data, l2_id)
+        l3_ids = [i for _, i in l3_ch]
+        if l3_id not in l3_ids:
+            l3_id = None
+    else:
+        l3_ch = []
+
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, l3_id)
+
+    return (
+        gr.update(choices=ch, value=l1_id),
+        gr.update(choices=ch, value=l1_id),
+        gr.update(choices=l2_ch, value=l2_id),
+        gr.update(choices=l3_ch, value=l3_id),
+        _path_html(data, l1_id, l2_id, l3_id),
+        file_html,
+        file_paths,
+        file_count,
+    )
 
 
 def sync_dropdowns_on_close(data, l1_id, l2_id):

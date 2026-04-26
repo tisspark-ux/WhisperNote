@@ -7,6 +7,8 @@ install_log.txt
 whispernote_error.log
 logs/
 
+last_state.json
+
 # WhisperX model cache
 models/*
 !models/.gitkeep
