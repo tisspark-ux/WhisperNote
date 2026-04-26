@@ -83,20 +83,35 @@ def on_panel_l3(data, l1_id, l2_id, l3_id):
 # ── 메인 드롭다운 cascade ──────────────────────────────────
 
 def on_l1_change(data, l1_id):
+    from handlers.files import load_folder_file_list
     save_last_category(l1_id, None, None)
     l2_ch = _cat_choices(data, l1_id)
-    return gr.update(choices=l2_ch, value=None), gr.update(choices=[], value=None), _path_html(data, l1_id, None, None)
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, None, None)
+    return (
+        gr.update(choices=l2_ch, value=None),
+        gr.update(choices=[], value=None),
+        _path_html(data, l1_id, None, None),
+        file_html, file_paths, file_count,
+    )
 
 
 def on_l2_change(data, l1_id, l2_id):
+    from handlers.files import load_folder_file_list
     save_last_category(l1_id, l2_id, None)
     l3_ch = _cat_choices(data, l2_id)
-    return gr.update(choices=l3_ch, value=None), _path_html(data, l1_id, l2_id, None)
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, None)
+    return (
+        gr.update(choices=l3_ch, value=None),
+        _path_html(data, l1_id, l2_id, None),
+        file_html, file_paths, file_count,
+    )
 
 
 def on_l3_change(data, l1_id, l2_id, l3_id):
+    from handlers.files import load_folder_file_list
     save_last_category(l1_id, l2_id, l3_id)
-    return _path_html(data, l1_id, l2_id, l3_id)
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, l3_id)
+    return _path_html(data, l1_id, l2_id, l3_id), file_html, file_paths, file_count
 
 
 # ── 추가 / 수정 / 삭제 ──────────────────────────────────────

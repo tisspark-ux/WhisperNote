@@ -9,6 +9,9 @@ from __future__ import annotations
 import numpy as np
 import torch
 
+from lib.logger import get_logger
+_logger = get_logger("diarizer")
+
 
 def _load_encoder():
     from resemblyzer import VoiceEncoder
@@ -40,7 +43,8 @@ def _estimate_num_speakers(embeddings: np.ndarray, max_speakers: int = 8) -> int
     mean_sim = float(sim_matrix[mask].mean())
 
     # 유사도가 매우 높으면 단일 화자로 확정
-    if mean_sim > 0.93:
+    if mean_sim > 0.95:
+        _logger.debug("화자 수 추정 — n=%d, mean_sim=%.3f (단일 화자 확정)", n, mean_sim)
         return 1
 
     # Normalized Laplacian eigenvalue gap heuristic
@@ -55,9 +59,17 @@ def _estimate_num_speakers(embeddings: np.ndarray, max_speakers: int = 8) -> int
     k_est = int(np.argmax(gaps) + 1)
 
     # heuristic 이 1명으로 판정했지만 평균 유사도가 낮으면 → 최소 2명
-    if k_est == 1 and mean_sim < 0.88:
+    if k_est == 1 and mean_sim < 0.92:
+        _logger.debug(
+            "화자 수 추정 — n=%d, mean_sim=%.3f, k_est=1 → 보정: 2명",
+            n, mean_sim,
+        )
         return 2
 
+    _logger.debug(
+        "화자 수 추정 — n=%d, mean_sim=%.3f, k_est=%d",
+        n, mean_sim, k_est,
+    )
     return k_est
 
 
@@ -125,6 +137,11 @@ def diarize(
     else:
         # 사용자 지정값을 상한으로, 실제 화자 수는 자동 추정
         k = _estimate_num_speakers(emb_matrix, max_speakers=num_speakers)
+
+    _logger.info(
+        "화자분리 — 세그먼트: %d개, 임베딩: %d개, 최종 화자 수: %d",
+        len(segments), n, k,
+    )
 
     # 클러스터링
     if k == 1 or n == 1:
