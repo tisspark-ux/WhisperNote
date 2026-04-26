@@ -1,5 +1,96 @@
 __version__ = "1.0.48"
 
+# =============================================================================
+# WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
+# =============================================================================
+#
+# [목적]
+#   회의·면담 음성을 완전 로컬에서 녹음 → WhisperX 전사 → 화자 분리 → Ollama 요약.
+#   사내 망에서도 인터넷 없이 동작. Windows 10/11 전용 (WASAPI 루프백 사용).
+#
+# [실행 방법]
+#   run.bat 더블클릭  →  브라우저 자동 오픈 (포트 7860)
+#   또는: python app.py
+#
+# [핵심 기술 스택]
+#   - 녹음:       sounddevice (마이크) + soundcard WASAPI (시스템 오디오)
+#   - 전사:       WhisperX + faster-whisper (large-v3-turbo, GPU CUDA)
+#   - 화자분리:   resemblyzer + SpectralClustering (오프라인, HuggingFace 불필요)
+#   - 요약/교정:  Ollama HTTP API (기본 exaone3.5:latest, UI에서 변경 가능)
+#   - UI:         Gradio 4.x (다크 테마, Studio 탭 + 설정 탭)
+#
+# [파일 구조]
+#   app.py               — 진입점: 패치 로드, Gradio UI 정의, 이벤트 연결
+#   config.py            — 사용자 설정 (모델명, 경로, 샘플레이트 등)
+#   version.py           — 버전 번호 + CHANGELOG (이 파일)
+#
+#   core/
+#     recorder.py        — sounddevice 마이크/WASAPI 루프백/혼합 녹음, 자동 분할
+#     transcriber.py     — WhisperX 전사, 화자 정렬, resemblyzer 화자 분리, 진행률 콜백
+#     diarizer.py        — resemblyzer 화자 임베딩 + SpectralClustering
+#     summarizer.py      — Ollama HTTP 요약/교정 (prompts/ 파일 사용)
+#     download_whisper.py— Whisper 모델 단독 다운로드 스크립트
+#
+#   lib/
+#     patches.py         — 앱 시작 시 가장 먼저 실행: SSL/프록시/Gradio 4.x 버그 패치
+#     instances.py       — recorder·transcriber·summarizer 공유 싱글턴 + sentinel 상수
+#     worker.py          — AutoTranscriptionWorker: 백그라운드 전사→교정→요약 대기열
+#     styles.py          — Gradio 커스텀 CSS
+#
+#   handlers/
+#     recording.py       — 녹음 시작/종료/일시정지/마이크 테스트/청크 폴링 핸들러
+#     category.py        — 3단계 분류 패널 (Miller Column) CRUD + 드롭다운 연동
+#     files.py           — 왼쪽 파일 목록 패널: 로드/업로드/선택/제거
+#     ai.py              — 전사/교정/요약/파이프라인 버튼 핸들러
+#
+#   data/
+#     categories.py      — 분류 트리 CRUD (categories.json 영속화)
+#     storage.py         — 카테고리 → 출력 경로 변환 (outputs/L1/L2/L3/)
+#     prompts.py         — 프롬프트 파일 관리 (prompts/ 폴더, 요약/교정 구분)
+#
+#   outputs/             — 녹음·전사·요약 파일 저장 루트
+#     uncategorized/     — 분류 미선택 시 기본 저장 위치
+#     {L1}/{L2}/{L3}/    — 분류 선택 시 해당 경로에 저장
+#   prompts/
+#     summary/{회의,면담,보고서 리뷰}.txt  — 요약 프롬프트 (앱 실행 시 자동 생성)
+#     correction/교정.txt                  — 교정 프롬프트
+#   models/              — HuggingFace 캐시 (HF_HOME 재지정, large-v3-turbo ~1.6GB)
+#   logs/                — 날짜별 에러 로그 (YYYY-MM-DD.log)
+#
+# [sentinel 상수 (lib/instances.py)]
+#   LOOPBACK_AUTO = -2   : 루프백 장치 자동 감지
+#   REMOTE_AUTO   = -3   : RDP 원격 마이크 자동 감지
+#   WASAPI_AUTO   = -4   : WASAPI 루프백 (시스템 오디오 전용)
+#   MIX_AUTO      = -5   : 마이크 + WASAPI 혼합 녹음
+#
+# [입력 장치 드롭다운 선택지]
+#   (PC) 🎙 대면회의      → 기본 마이크
+#   (PC) 🎙+🎧 원격회의  → 마이크 + WASAPI 혼합 (MIX_AUTO)
+#   (원격) 🖥 대면회의   → RDP 마이크 자동감지 (REMOTE_AUTO)
+#   (원격) 🎙+🎧 원격회의→ RDP 마이크 + WASAPI 혼합
+#   개별 장치들도 드롭다운에 자동 나열
+#
+# [자동 처리 흐름]
+#   녹음 시작 → 자동 분할(기본 30분) → 청크마다 AutoTranscriptionWorker 대기열 투입
+#   → 전사(WhisperX) → 교정(Ollama) → 요약(Ollama) → UI 반영
+#   수동으로도 "전사만" / "요약만" / "전사+요약" 버튼으로 실행 가능
+#
+# [의존성 주의 사항]
+#   - pyannote.audio==3.4.0  : 4.x 는 whisperx 와 충돌 → 고정
+#   - starlette<0.40.0       : 0.40+ 는 Gradio 4.x 와 API 불일치 → 고정
+#   - gradio>=4.44.1,<5.0.0  : Gradio 5.x 는 UI 구조 변경으로 미지원
+#   - torch: install.bat 에서 CUDA 12.4(cu124) 인덱스로 별도 설치
+#   - resemblyzer: --no-deps 로 설치 (webrtcvad C++ 빌드 충돌 회피), librosa 별도 설치
+#
+# [회사 환경 패치 (lib/patches.py + app.py)]
+#   - no_proxy 환경변수: 사내 프록시가 localhost 차단하는 문제 우회
+#   - requests verify=False + proxies=None: SSL 자체서명 인증서 우회
+#   - Gradio url_ok 패치: 프록시가 Gradio 자체 포트 확인 요청을 막는 문제 해결
+#   - gradio_client.utils 3종 패치: boolean JSON schema → TypeError 완전 해결
+#   - winreg ProxyOverride: 브라우저도 127.0.0.1 프록시 우회 (Windows)
+#
+# =============================================================================
+
 CHANGELOG = """
 v1.0.48 (2026-04-26)
   - [리팩토링] 폴더 구조 재편: Python 파일을 core/lib/handlers/data/ 하위로 이동
