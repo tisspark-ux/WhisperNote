@@ -199,6 +199,8 @@ def handle_file_list_process(
     summary_type_val: str,
     cat_data_val, l1_id, l2_id, l3_id,
     num_speakers_val="자동",
+    recorded: str = "",
+    uploaded: str | None = None,
     progress=gr.Progress(),
 ):
     """파일 목록에서 선택된 파일 처리. outputs: 11개."""
@@ -209,7 +211,18 @@ def handle_file_list_process(
     except Exception:
         selected = []
     if not selected:
-        return *_no11[:10], "선택된 파일이 없습니다."
+        audio = _resolve_audio(recorded, uploaded)
+        if not audio:
+            return *_no11[:10], "오디오 파일을 선택하거나 먼저 녹음하세요."
+        if action == "pipeline":
+            return handle_pipeline(audio, None, model_name, summary_type_val,
+                                   cat_data_val, l1_id, l2_id, l3_id, num_speakers_val, progress)
+        elif action == "transcribe":
+            res = handle_transcribe(audio, None, cat_data_val, l1_id, l2_id, l3_id, num_speakers_val, progress)
+            return (res[0], res[1], gr.update(), gr.update(),
+                    res[3], res[2], res[4], res[5], res[6], res[7], res[8])
+        else:
+            return *_no11[:10], "전사 결과를 먼저 실행하세요."
 
     out_dir = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
 
