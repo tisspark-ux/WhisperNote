@@ -162,14 +162,17 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
         auto_worker.enqueue_finalize()
 
     # 완료된 결과 반영
+    pipeline_updated = False
     result = auto_worker.pop_result()
     while result is not None:
         if "error" in result:
             r_pipeline = gr.update(value=f"⚠ {result['error']}")
+            pipeline_updated = True
         elif result.get("type") == "transcript":
             r_transcript = gr.update(value=result["transcript"])
             r_tfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
+            pipeline_updated = True
             if current_view == "원문":
                 r_display = gr.update(value=result["transcript"])
                 r_dfile   = gr.update(value=result["file_path"])
@@ -177,6 +180,7 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
             r_correction = gr.update(value=result["correction"])
             r_cfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
+            pipeline_updated = True
             r_display    = gr.update(value=result["correction"])
             r_view       = gr.update(value="교정")
             r_dfile      = gr.update(value=result["file_path"])
@@ -184,7 +188,14 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
             r_summary  = gr.update(value=result["summary"])
             r_sfile    = gr.update(value=result["file_path"])
             r_pipeline = gr.update(value=result["status"])
+            pipeline_updated = True
         result = auto_worker.pop_result()
+
+    # 완료 메시지 없을 때만 진행 중 메시지 표시
+    if not pipeline_updated:
+        prog = auto_worker.get_progress_msg()
+        if prog:
+            r_pipeline = gr.update(value=prog)
 
     queue_text = auto_worker.get_status_text()
     r_queue = gr.update(value=queue_text)

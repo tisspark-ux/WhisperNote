@@ -32,6 +32,7 @@ class AutoTranscriptionWorker:
         self._session_active: bool = False
         self._finalize_triggered: bool = False
         self._corrected_path: Path | None = None
+        self._progress_msg: str = ""
 
     # ── 세션 초기화 ──────────────────────────────────────────
     def reset(self, combined_path: Path | None, out_dir: Path | None,
@@ -48,6 +49,7 @@ class AutoTranscriptionWorker:
             self._pending_labels = []
             self._session_active = True
             self._finalize_triggered = False
+            self._progress_msg = ""
 
     # ── 대기열 관리 ──────────────────────────────────────────
     def _make_label(self, job: dict) -> str:
@@ -106,6 +108,14 @@ class AutoTranscriptionWorker:
             self._thread is not None and self._thread.is_alive()
         )
 
+    def get_progress_msg(self) -> str:
+        with self._lock:
+            return self._progress_msg
+
+    def _set_progress(self, pct: float, msg: str):
+        with self._lock:
+            self._progress_msg = msg
+
     def get_status_text(self) -> str:
         with self._lock:
             current = self._current_label
@@ -143,6 +153,7 @@ class AutoTranscriptionWorker:
             finally:
                 with self._lock:
                     self._current_label = None
+                    self._progress_msg = ""
                 self._queue.task_done()
 
     def _do_transcribe(self, job: dict):
@@ -153,7 +164,8 @@ class AutoTranscriptionWorker:
         has_parts  = job["has_parts"]
 
         transcript_text, part_file = transcriber.transcribe(
-            wav_path, output_dir=self._out_dir, num_speakers=self._num_speakers
+            wav_path, output_dir=self._out_dir, num_speakers=self._num_speakers,
+            on_progress=self._set_progress,
         )
 
         if has_parts:
@@ -196,6 +208,8 @@ class AutoTranscriptionWorker:
         if not transcript_text:
             return
         audio_stem = combined.stem.replace("_transcript", "")
+        with self._lock:
+            self._progress_msg = "교정 중..."
         try:
             corrected, c_file = summarizer.correct_transcript(
                 transcript_text,
@@ -227,6 +241,8 @@ class AutoTranscriptionWorker:
         if not transcript_text:
             return
         audio_stem = source.stem.replace("_transcript_corrected", "").replace("_transcript", "")
+        with self._lock:
+            self._progress_msg = "요약 중..."
         try:
             summary, s_file = summarizer.summarize(
                 transcript_text, audio_stem,
