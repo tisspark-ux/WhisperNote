@@ -188,9 +188,16 @@ class AutoTranscriptionWorker:
                 status_msg    = f"파트 {part_index} 자동 전사 완료 — {Path(part_file).name}"
                 file_path_str = str(part_file)
         else:
-            display_text  = transcript_text
-            status_msg    = f"자동 전사 완료 — {Path(part_file).name}"
-            file_path_str = str(part_file)
+            combined = self._combined_path
+            if combined is not None:
+                combined.write_text(transcript_text, encoding="utf-8")
+                display_text  = transcript_text
+                status_msg    = f"자동 전사 완료 — {combined.name}"
+                file_path_str = str(combined)
+            else:
+                display_text  = transcript_text
+                status_msg    = f"자동 전사 완료 — {Path(part_file).name}"
+                file_path_str = str(part_file)
 
         with self._lock:
             self._results.append({
