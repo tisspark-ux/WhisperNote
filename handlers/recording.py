@@ -114,7 +114,7 @@ def handle_pause_resume():
         return gr.update(value="▶ 재개"), msg
 
 
-def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=None, l3_id=None):
+def handle_chunk_poll(current_view: str):
     """2초마다 청크/전사/요약 상태를 폴링해 UI 갱신."""
     r_status     = gr.update()
     r_file       = gr.update()
@@ -128,9 +128,6 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
     r_dfile      = gr.update()
     r_summary    = gr.update()
     r_sfile      = gr.update()
-    r_file_list  = gr.update()
-    r_file_paths = gr.update()
-    r_file_count = gr.update()
 
     # 청크 알림
     msg = recorder.pop_chunk_message()
@@ -138,13 +135,6 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
         r_status = gr.update(value=msg)
         if recorder.current_file:
             r_file = gr.update(value=str(recorder.current_file))
-        # 새 파트 파일 생성 → 파일 목록 갱신
-        if cat_data_val is not None:
-            from handlers.files import load_folder_file_list
-            fh, fp, fc = load_folder_file_list(cat_data_val, l1_id, l2_id, l3_id)
-            r_file_list  = gr.update(value=fh)
-            r_file_paths = fp
-            r_file_count = gr.update(value=fc)
 
     # 전사 대기 작업 → worker 큐로 이동
     job = recorder.pop_pending_transcription()
@@ -210,7 +200,6 @@ def handle_chunk_poll(current_view: str, cat_data_val=None, l1_id=None, l2_id=No
         r_pipeline, r_queue, r_timer,
         r_display, r_view, r_dfile,
         r_summary, r_sfile,
-        r_file_list, r_file_paths, r_file_count,
     )
 
 

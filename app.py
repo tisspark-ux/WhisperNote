@@ -599,11 +599,10 @@ python app.py
         chunk_poll_timer,
         text_display, view_radio, display_file_path,
         summary_output, summary_file_path,
-        file_list_display, file_paths, file_count_label,
     ]
     chunk_poll_timer.tick(
         handle_chunk_poll,
-        inputs=[view_radio, cat_data, cat_l1, cat_l2, cat_l3],
+        inputs=[view_radio],
         outputs=_poll_outputs,
     )
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
