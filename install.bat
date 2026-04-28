@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo ======================================
 echo  WhisperNote Setup
 echo ======================================
@@ -44,22 +45,12 @@ set PYTHON=.venv\Scripts\python.exe
 rem Upgrade pip - silent (instant, no progress needed)
 %PYTHON% -m pip install --upgrade pip -q >> %LOG% 2>&1
 
-rem PyTorch (CUDA 12.4)
-echo [2/5] Installing PyTorch...
-%PYTHON% -c "import torch; assert torch.cuda.is_available(), 'cpu-only'" >nul 2>&1
-if not errorlevel 1 (
-    for /f "tokens=*" %%v in ('%PYTHON% -c "import torch; print(torch.__version__)"') do echo   PyTorch %%v + CUDA already installed, skipping.
-    goto torch_done
-)
-echo   Installing PyTorch with CUDA 12.4 (may take several minutes)...
-%PIP% install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124 --no-cache-dir --trusted-host download.pytorch.org --trusted-host files.pythonhosted.org --trusted-host pypi.org 2>> %LOG%
+rem PyTorch (GPU/CPU auto-detect and user selection)
+echo [2/5] PyTorch...
+%PYTHON% core\install_torch.py
 if errorlevel 1 (
-    echo [ERROR] PyTorch installation failed. Error details:
-    type %LOG%
     pause & exit /b 1
 )
-echo   PyTorch installed.
-:torch_done
 
 rem Other packages
 echo [3/5] Installing packages...
