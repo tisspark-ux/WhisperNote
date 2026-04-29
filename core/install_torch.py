@@ -150,6 +150,20 @@ def main() -> int:
         return 1
 
     print(f"  PyTorch ({want_type}) 설치 완료.")
+
+    # 설치 후 CUDA 동작 확인
+    if want_gpu:
+        print("  CUDA 동작 확인 중...")
+        if _cuda_ok():
+            print(f"  CUDA 정상 동작 확인 완료. ({_torch_ver()})")
+        else:
+            print()
+            print("  [경고] CUDA PyTorch 설치됐으나 GPU 인식 실패.")
+            print("  원인 후보:")
+            print("    1. NVIDIA 드라이버가 CUDA 12.4 를 지원하지 않음")
+            print("       -> https://www.nvidia.com/drivers 에서 최신 드라이버 설치")
+            print("    2. 드라이버 설치 후 재부팅 필요")
+            print("    3. install.bat 을 다시 실행해 CPU 버전으로 전환 가능")
     return 0
 
 
