@@ -153,13 +153,8 @@ def _install_pinned_cuda(cuda_tag: str, index_url: str) -> bool:
     if not ver:
         print(f"  [오류] {cuda_tag} 인덱스에서 CUDA 빌드를 찾지 못했습니다.")
         return False
-    # torchvision / torchaudio 는 같은 버전으로 맞춤
-    base = ver.split("+")[0]
-    pkgs = [
-        f"torch=={ver}",
-        f"torchvision=={base}+{cuda_tag}",
-        f"torchaudio=={base}+{cuda_tag}",
-    ]
+    # torch만 버전 고정, torchvision/torchaudio는 pip가 호환 버전 자동 선택
+    pkgs = [f"torch=={ver}", "torchvision", "torchaudio"]
     print(f"  PyTorch {ver} 고정 설치 중 (수 분 소요)...")
     r = subprocess.run(_PIP + ["install"] + pkgs + ["--index-url", index_url] + _COMMON)
     return r.returncode == 0
