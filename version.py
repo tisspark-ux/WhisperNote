@@ -1,4 +1,4 @@
-__version__ = "1.0.65"
+__version__ = "1.0.66"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,11 @@ __version__ = "1.0.65"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.66 (2026-04-28)
+  - [수정] install_torch.py: torchvision/torchaudio 버전 고정 버그 수정
+    - torch와 torchvision 버전이 다름 (torch 2.7.0 → torchvision 0.22.0)
+    - torch만 버전 고정, torchvision/torchaudio는 pip 자동 해결로 변경
+
 v1.0.65 (2026-04-28)
   - [수정] install_torch.py: CPU 빌드 설치 감지 시 이전 CUDA 빌드 버전 자동 재설치
     - pip index versions 으로 인덱스 내 최신 CUDA 빌드 버전 탐색
