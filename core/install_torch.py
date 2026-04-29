@@ -278,7 +278,16 @@ def main() -> int:
     print()
     _print_installed_info()
 
-    # CUDA 동작 확인
+    # GPU 요청했는데 CPU 빌드가 설치된 경우 (인덱스에 CUDA 빌드 없음)
+    if want_gpu and _installed_type() == "cpu":
+        print()
+        print("  [경고] GPU 버전을 요청했으나 CPU 빌드가 설치됨.")
+        print(f"  원인: {cuda_tag} 인덱스에 최신 PyTorch CUDA 빌드가 아직 없을 수 있음.")
+        print("  해결 방법: install.bat 재실행 → GPU 버전 선택 시 이전 버전으로 설치 시도")
+        print("  또는 CPU 버전으로 사용하세요.")
+        return 0
+
+    # CUDA 빌드는 됐는데 GPU 인식 실패
     if want_gpu and not _cuda_ok():
         print()
         print("  [경고] CUDA PyTorch 설치됐으나 GPU 인식 실패.")
