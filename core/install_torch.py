@@ -114,11 +114,24 @@ def main() -> int:
 
     print()
     if default_gpu:
-        ans = input("  GPU(CUDA) 버전으로 설치하시겠습니까? [Y/n]: ").strip().lower()
-        want_gpu = (ans != "n")
+        print("  설치할 버전을 선택하세요:")
+        print("    1. GPU(CUDA 12.4) 버전  [권장]")
+        print("    2. CPU 버전")
     else:
-        ans = input("  CPU 버전으로 설치합니다. GPU 버전 설치는 'g' 입력. [Y/g]: ").strip().lower()
-        want_gpu = (ans == "g")
+        print("  설치할 버전을 선택하세요:")
+        print("    1. CPU 버전  [권장]")
+        print("    2. GPU(CUDA 12.4) 버전")
+
+    while True:
+        ans = input("  선택 (1 또는 2): ").strip()
+        if ans == "1":
+            want_gpu = default_gpu
+            break
+        elif ans == "2":
+            want_gpu = not default_gpu
+            break
+        else:
+            print("  잘못된 입력입니다. 1 또는 2를 입력하세요.")
 
     want_type = "cuda" if want_gpu else "cpu"
 
