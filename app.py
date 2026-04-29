@@ -633,7 +633,13 @@ python app.py
     selected_paths.change(
         on_file_select,
         inputs=[selected_paths, file_paths],
-        outputs=[audio_preview, file_count_label, uploaded_file],
+        outputs=[
+            audio_preview, file_count_label, uploaded_file,
+            transcript_output, transcript_file_path,
+            correction_output, corrected_file_path,
+            summary_output, summary_file_path,
+            text_display, view_radio, display_file_path,
+        ],
     )
 
     # view_radio 전환: 숨겨진 상태에서 표시 텍스트/파일 경로 갱신
