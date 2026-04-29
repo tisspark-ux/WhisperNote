@@ -132,6 +132,39 @@ def _install(index_url: str, label: str) -> bool:
     return r.returncode == 0
 
 
+def _find_latest_cuda_version(cuda_tag: str, index_url: str) -> str | None:
+    """pip index versions 으로 인덱스에서 최신 CUDA 빌드 버전 탐색."""
+    try:
+        r = subprocess.run(
+            _PIP + ["index", "versions", "torch", "--index-url", index_url],
+            capture_output=True, text=True, timeout=30,
+        )
+        # 출력 예: "torch (2.8.0+cpu, 2.7.0+cu124, 2.6.0+cu124, ...)"
+        versions = re.findall(rf'(\d+\.\d+\.\d+\+{cuda_tag})', r.stdout)
+        return versions[0] if versions else None
+    except Exception:
+        return None
+
+
+def _install_pinned_cuda(cuda_tag: str, index_url: str) -> bool:
+    """최신 버전에 CUDA 빌드 없을 때 인덱스에서 최신 CUDA 빌드 버전을 찾아 고정 설치."""
+    print(f"  인덱스에서 최신 {cuda_tag} 빌드 버전 탐색 중...")
+    ver = _find_latest_cuda_version(cuda_tag, index_url)
+    if not ver:
+        print(f"  [오류] {cuda_tag} 인덱스에서 CUDA 빌드를 찾지 못했습니다.")
+        return False
+    # torchvision / torchaudio 는 같은 버전으로 맞춤
+    base = ver.split("+")[0]
+    pkgs = [
+        f"torch=={ver}",
+        f"torchvision=={base}+{cuda_tag}",
+        f"torchaudio=={base}+{cuda_tag}",
+    ]
+    print(f"  PyTorch {ver} 고정 설치 중 (수 분 소요)...")
+    r = subprocess.run(_PIP + ["install"] + pkgs + ["--index-url", index_url] + _COMMON)
+    return r.returncode == 0
+
+
 def _ask_cuda_manual():
     """CUDA 버전 감지 실패 시 수동 선택. (태그, cuda버전, URL) 또는 None(CPU) 반환."""
     print()
@@ -278,14 +311,21 @@ def main() -> int:
     print()
     _print_installed_info()
 
-    # GPU 요청했는데 CPU 빌드가 설치된 경우 (인덱스에 CUDA 빌드 없음)
+    # GPU 요청했는데 CPU 빌드가 설치된 경우 → 고정 버전으로 재시도
     if want_gpu and _installed_type() == "cpu":
         print()
-        print("  [경고] GPU 버전을 요청했으나 CPU 빌드가 설치됨.")
-        print(f"  원인: {cuda_tag} 인덱스에 최신 PyTorch CUDA 빌드가 아직 없을 수 있음.")
-        print("  해결 방법: install.bat 재실행 → GPU 버전 선택 시 이전 버전으로 설치 시도")
-        print("  또는 CPU 버전으로 사용하세요.")
-        return 0
+        print(f"  [경고] CPU 빌드가 설치됨 — {cuda_tag} 인덱스에 최신 PyTorch CUDA 빌드 없음.")
+        print("  이전 버전 CUDA 빌드로 재설치 시도합니다...")
+        _uninstall()
+        if _install_pinned_cuda(cuda_tag, cuda_url):
+            print()
+            _print_installed_info()
+            if _installed_type() == "cpu":
+                print("  [오류] CUDA 빌드 설치 실패. CPU 버전으로 사용하거나 나중에 다시 시도하세요.")
+                return 1
+        else:
+            print("  [오류] CUDA 빌드 설치 실패. CPU 버전으로 사용하거나 나중에 다시 시도하세요.")
+            return 1
 
     # CUDA 빌드는 됐는데 GPU 인식 실패
     if want_gpu and not _cuda_ok():
