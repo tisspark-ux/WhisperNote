@@ -48,7 +48,56 @@ def handle_upload_files(files, current_paths: list):
     return _render_file_list(merged), merged, f"전체 {len(merged)}개"
 
 
-def handle_file_selection(selected_json: str, file_paths: list):
+def _find_associated_files(wav_path: str) -> dict:
+    """wav 파일 기준으로 연관 전사/교정/요약 파일 탐색.
+    통합본 우선, 없으면 파트별 병합.
+    반환: {"transcript": (text, path), "correction": (text, path), "summary": (text, path)}
+    """
+    p = Path(wav_path)
+    d = p.parent
+    base = p.stem.split("_part")[0]
+
+    def _load(f: Path) -> str:
+        try:
+            return f.read_text(encoding="utf-8")
+        except Exception:
+            return ""
+
+    result = {"transcript": ("", ""), "correction": ("", ""), "summary": ("", "")}
+
+    # 전사: 통합본 우선 → 없으면 파트별 병합
+    combined_t = d / f"{base}_transcript.txt"
+    if combined_t.exists():
+        result["transcript"] = (_load(combined_t), str(combined_t))
+    else:
+        parts = sorted(d.glob(f"{base}_part*_transcript.txt"))
+        if parts:
+            result["transcript"] = (
+                "\n\n".join(_load(pt) for pt in parts),
+                str(parts[0]),
+            )
+
+    # 교정: 통합본 우선 → 없으면 파트별 병합
+    combined_c = d / f"{base}_transcript_corrected.txt"
+    if combined_c.exists():
+        result["correction"] = (_load(combined_c), str(combined_c))
+    else:
+        parts = sorted(d.glob(f"{base}_part*_transcript_corrected.txt"))
+        if parts:
+            result["correction"] = (
+                "\n\n".join(_load(pt) for pt in parts),
+                str(parts[0]),
+            )
+
+    # 요약
+    summary_f = d / f"{base}_summary.txt"
+    if summary_f.exists():
+        result["summary"] = (_load(summary_f), str(summary_f))
+
+    return result
+
+
+
     """선택된 파일 경로 JSON -> Audio 로드 + 선택 카운트."""
     try:
         selected = json.loads(selected_json) if selected_json else []
@@ -77,14 +126,38 @@ def handle_remove_selected(selected_json: str, file_paths_val: list):
 
 
 def on_file_select(selected_json: str, file_paths_val: list):
-    """파일 선택 → audio_preview, file_count_label, uploaded_file 갱신."""
+    """파일 선택 → audio_preview + 연관 전사/교정/요약 파일 로드."""
+    import gradio as gr
     try:
         selected = json.loads(selected_json) if selected_json else []
     except Exception:
         selected = []
+
     audio_val = selected[0] if selected else None
     count_html = (
         f'<span style="color:#818cf8;font-size:.82rem">{len(selected)}개 선택</span>'
         if selected else ""
     )
-    return audio_val, count_html, audio_val or ""
+
+    t_text = t_path = c_text = c_path = s_text = s_path = ""
+    display_text = display_path = ""
+    view_val = gr.update()
+
+    if audio_val:
+        assoc = _find_associated_files(audio_val)
+        t_text, t_path = assoc["transcript"]
+        c_text, c_path = assoc["correction"]
+        s_text, s_path = assoc["summary"]
+
+        if c_text:
+            display_text, display_path, view_val = c_text, c_path, "교정"
+        elif t_text:
+            display_text, display_path, view_val = t_text, t_path, "원문"
+
+    return (
+        audio_val, count_html, audio_val or "",
+        t_text, t_path,
+        c_text, c_path,
+        s_text, s_path,
+        display_text, view_val, display_path,
+    )
