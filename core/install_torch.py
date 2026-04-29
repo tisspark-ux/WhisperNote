@@ -1,5 +1,6 @@
 """PyTorch GPU/CPU 선택 설치 스크립트."""
 import os
+import re
 import subprocess
 import sys
 
@@ -21,8 +22,14 @@ _COMMON = [
     "--trusted-host", "files.pythonhosted.org",
     "--trusted-host", "pypi.org",
 ]
-_CUDA_INDEX = "https://download.pytorch.org/whl/cu124"
-_CPU_INDEX  = "https://download.pytorch.org/whl/cpu"
+_CPU_INDEX = "https://download.pytorch.org/whl/cpu"
+
+# 드라이버 CUDA 버전별 PyTorch 인덱스 (높은 버전 우선)
+_CUDA_BUILDS = [
+    (12.4, "cu124", "https://download.pytorch.org/whl/cu124"),
+    (12.1, "cu121", "https://download.pytorch.org/whl/cu121"),
+    (11.8, "cu118", "https://download.pytorch.org/whl/cu118"),
+]
 
 
 def _detect_gpus():
@@ -36,6 +43,29 @@ def _detect_gpus():
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
     return []
+
+
+def _detect_driver_cuda_version():
+    """nvidia-smi 출력에서 드라이버가 지원하는 CUDA 최대 버전을 반환. 실패 시 None."""
+    try:
+        r = subprocess.run(
+            ["nvidia-smi"], capture_output=True, text=True, timeout=5,
+        )
+        if r.returncode == 0:
+            m = re.search(r"CUDA Version:\s*(\d+)\.(\d+)", r.stdout)
+            if m:
+                return float(f"{m.group(1)}.{m.group(2)}")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def _select_cuda_build(driver_cuda_ver):
+    """드라이버 CUDA 버전에 맞는 (태그, 인덱스URL) 반환. 호환 없으면 None."""
+    for min_ver, tag, url in _CUDA_BUILDS:
+        if driver_cuda_ver >= min_ver:
+            return tag, url
+    return None
 
 
 def _installed_type():
@@ -75,31 +105,47 @@ def _uninstall():
     )
 
 
-def _install(cuda: bool) -> bool:
-    if cuda:
-        print("  PyTorch CUDA 12.4 버전 설치 중 (수 분 소요)...")
-        idx = _CUDA_INDEX
-    else:
-        print("  PyTorch CPU 버전 설치 중...")
-        idx = _CPU_INDEX
-    r = subprocess.run(_PIP + ["install"] + _TORCH_PKGS + ["--index-url", idx] + _COMMON)
+def _install(cuda_tag: str | None, index_url: str, label: str) -> bool:
+    print(f"  PyTorch {label} 설치 중 (수 분 소요)...")
+    r = subprocess.run(
+        _PIP + ["install"] + _TORCH_PKGS + ["--index-url", index_url] + _COMMON
+    )
     return r.returncode == 0
 
 
 def main() -> int:
     gpus = _detect_gpus()
+    driver_cuda = _detect_driver_cuda_version()
     installed = _installed_type()
 
     print()
+
+    # GPU / 드라이버 정보 출력
     if gpus:
         print("  [GPU 감지됨]")
         for g in gpus:
             print(f"    - {g}")
-        default_gpu = True
+        if driver_cuda:
+            print(f"  [드라이버 지원 CUDA] {driver_cuda:.1f}")
+            build = _select_cuda_build(driver_cuda)
+            if build:
+                cuda_tag, cuda_url = build
+                print(f"  [설치 가능 빌드] PyTorch {cuda_tag}")
+            else:
+                print("  [경고] 드라이버가 너무 오래됨 — CUDA 11.8 미만 (PyTorch 미지원)")
+                print("         드라이버를 업데이트하거나 CPU 버전을 선택하세요.")
+                cuda_tag, cuda_url = None, None
+        else:
+            print("  [경고] nvidia-smi에서 CUDA 버전을 읽지 못했습니다.")
+            cuda_tag, cuda_url = "cu124", "https://download.pytorch.org/whl/cu124"
+        default_gpu = (cuda_tag is not None)
     else:
         print("  [NVIDIA GPU 없음 - CPU 버전 권장]")
+        driver_cuda = None
+        cuda_tag, cuda_url = None, None
         default_gpu = False
 
+    # 현재 설치 상태 출력
     if installed:
         if installed == "cuda":
             ok_str = "CUDA 정상" if _cuda_ok() else "CUDA 인식 불가"
@@ -112,15 +158,19 @@ def main() -> int:
         print("  [현재 설치] PyTorch 없음")
         cuda_ok_now = cpu_ok_now = False
 
+    # 선택지 구성
     print()
     if default_gpu:
         print("  설치할 버전을 선택하세요:")
-        print("    1. GPU(CUDA 12.4) 버전  [권장]")
+        print(f"    1. GPU 버전 ({cuda_tag})  [권장]")
         print("    2. CPU 버전")
     else:
         print("  설치할 버전을 선택하세요:")
         print("    1. CPU 버전  [권장]")
-        print("    2. GPU(CUDA 12.4) 버전")
+        if cuda_tag:
+            print(f"    2. GPU 버전 ({cuda_tag})")
+        else:
+            print("    2. GPU 버전  (드라이버 미지원 — 비권장)")
 
     while True:
         ans = input("  선택 (1 또는 2): ").strip()
@@ -145,7 +195,14 @@ def main() -> int:
         _uninstall()
 
     # 설치
-    if not _install(want_gpu):
+    if want_gpu:
+        if not cuda_tag:
+            cuda_tag, cuda_url = "cu124", "https://download.pytorch.org/whl/cu124"
+        ok = _install(cuda_tag, cuda_url, f"CUDA ({cuda_tag})")
+    else:
+        ok = _install(None, _CPU_INDEX, "CPU")
+
+    if not ok:
         print("[ERROR] PyTorch 설치 실패.")
         return 1
 
@@ -155,15 +212,17 @@ def main() -> int:
     if want_gpu:
         print("  CUDA 동작 확인 중...")
         if _cuda_ok():
-            print(f"  CUDA 정상 동작 확인 완료. ({_torch_ver()})")
+            print(f"  CUDA 정상 동작 확인. ({_torch_ver()})")
         else:
             print()
             print("  [경고] CUDA PyTorch 설치됐으나 GPU 인식 실패.")
-            print("  원인 후보:")
-            print("    1. NVIDIA 드라이버가 CUDA 12.4 를 지원하지 않음")
-            print("       -> https://www.nvidia.com/drivers 에서 최신 드라이버 설치")
-            print("    2. 드라이버 설치 후 재부팅 필요")
-            print("    3. install.bat 을 다시 실행해 CPU 버전으로 전환 가능")
+            if driver_cuda:
+                print(f"  드라이버 지원 CUDA: {driver_cuda:.1f}")
+            print("  해결 방법:")
+            print("    1. NVIDIA 드라이버 최신 버전으로 업데이트 후 재부팅")
+            print("       -> https://www.nvidia.com/drivers")
+            print("    2. 재부팅 후 install.bat 다시 실행")
+            print("    3. GPU가 안 되면 install.bat 에서 CPU 버전 선택")
     return 0
 
 
