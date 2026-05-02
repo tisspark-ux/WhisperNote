@@ -273,7 +273,7 @@ class Transcriber:
             if not text:
                 continue
             if diarization_ok and speaker:
-                lines.append(f"[{speaker}] [{start:.1f}s - {end:.1f}s] {text}")
+                lines.append(f"[{start:.1f}s - {end:.1f}s] [{speaker}] {text}")
             else:
                 lines.append(f"[{start:.1f}s - {end:.1f}s] {text}")
 

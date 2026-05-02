@@ -167,12 +167,73 @@ _FILE_LIST_JS = """() => {
   }).observe(document.body, {childList: true, subtree: true});
 }"""
 
+_TRANSCRIPT_HEAD = """<script>
+function wnSeekAudio(seconds) {
+  var audio = document.querySelector('#wn-audio-preview audio');
+  if (!audio) { var all = document.querySelectorAll('audio'); if (all.length) audio = all[0]; }
+  if (!audio) return;
+  var wasPlaying = !audio.paused;
+  audio.currentTime = seconds;
+  if (wasPlaying) audio.play();
+}
+
+function wnTrClick(event, row) {
+  var wrap = row.closest('.wn-tr-wrap');
+  if (!wrap) return;
+  if (event.shiftKey && wrap._wnLast) {
+    var rows = Array.from(wrap.querySelectorAll('.wn-tr-row'));
+    var a = rows.indexOf(wrap._wnLast), b = rows.indexOf(row);
+    if (a < 0) a = 0;
+    var s = Math.min(a, b), e = Math.max(a, b);
+    rows.forEach(function(r, i) {
+      if (i >= s && i <= e) r.classList.add('wn-selected');
+      else r.classList.remove('wn-selected');
+    });
+  } else if (event.ctrlKey || event.metaKey) {
+    row.classList.toggle('wn-selected');
+  } else {
+    wrap.querySelectorAll('.wn-tr-row.wn-selected').forEach(function(r) { r.classList.remove('wn-selected'); });
+    row.classList.add('wn-selected');
+    var t = parseFloat(row.dataset.start);
+    if (!isNaN(t)) wnSeekAudio(t);
+  }
+  if (!event.shiftKey) wrap._wnLast = row;
+  wnTrUpdateCount(wrap);
+}
+
+function wnTrUpdateCount(wrap) {
+  var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected').length;
+  var total = wrap.querySelectorAll('.wn-tr-row').length;
+  var cnt = wrap.querySelector('.wn-tr-count');
+  if (cnt) cnt.textContent = sel > 0 ? sel + '개 선택 / ' + total + '개' : total + '개 세그먼트';
+}
+
+function wnTrCopy(btn) {
+  var wrap = btn ? btn.closest('.wn-tr-wrap') : document.querySelector('.wn-tr-wrap');
+  if (!wrap) return;
+  var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected');
+  if (!sel.length) sel = wrap.querySelectorAll('.wn-tr-row');
+  var lines = [];
+  sel.forEach(function(row) {
+    var time = row.querySelector('.wn-tr-time');
+    var speaker = row.querySelector('.wn-tr-speaker');
+    var text = row.querySelector('.wn-tr-text');
+    var line = '';
+    if (time && time.textContent.trim()) line += '[' + time.textContent.trim() + '] ';
+    if (speaker && speaker.textContent.trim()) line += '[' + speaker.textContent.trim() + '] ';
+    if (text) line += text.textContent.trim();
+    if (line.trim()) lines.push(line);
+  });
+  if (navigator.clipboard) navigator.clipboard.writeText(lines.join('\\n')).catch(function() {});
+}
+</script>"""
+
 
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
-with gr.Blocks(css=CSS, title="WhisperNote") as demo:
+with gr.Blocks(css=CSS, head=_TRANSCRIPT_HEAD, title="WhisperNote") as demo:
 
     # ── 헤더 ──
     gr.HTML(f"""
@@ -354,7 +415,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_classes="wn-hidden-input",
                         lines=1,
                     )
-                    audio_preview = gr.Audio(label="재생", type="filepath", interactive=False)
+                    audio_preview = gr.Audio(label="재생", type="filepath", interactive=False, elem_id="wn-audio-preview")
                     uploaded_file = gr.Textbox(visible=False)
 
                     model_status = gr.HTML("")
@@ -405,14 +466,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                             interactive=True,
                             elem_classes="wn-view-radio",
                         )
-                    text_display = gr.Textbox(
-                        lines=13,
-                        interactive=False,
-                        show_label=False,
-                        show_copy_button=True,
-                        placeholder="[SPEAKER_00] [0.0s - 4.2s] 전사 결과가 여기에 표시됩니다...",
-                        elem_classes="wn-result",
-                    )
+                    text_display = gr.HTML(value="")
                     with gr.Row():
                         display_file_path = gr.Textbox(
                             interactive=False,
@@ -584,7 +638,7 @@ python app.py
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
         handle_stop_recording,
-        outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
+        outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file, audio_preview],
     ).then(
         load_folder_file_list,
         inputs=[cat_data, cat_l1, cat_l2, cat_l3],
@@ -643,10 +697,12 @@ python app.py
     )
 
     # view_radio 전환: 숨겨진 상태에서 표시 텍스트/파일 경로 갱신
+    from lib.transcript_view import render_html as _render_html
+
     def switch_view(choice, transcript, correction, t_file, c_file):
         if choice == "교정":
-            return gr.update(value=correction), gr.update(value=c_file)
-        return gr.update(value=transcript), gr.update(value=t_file)
+            return gr.update(value=_render_html(correction)), gr.update(value=c_file)
+        return gr.update(value=_render_html(transcript)), gr.update(value=t_file)
 
     view_radio.change(
         switch_view,

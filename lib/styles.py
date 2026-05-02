@@ -292,4 +292,84 @@ body, .gradio-container {
     opacity: 0 !important;
     pointer-events: none !important;
 }
+
+/* ── 전사/교정 인터랙티브 테이블 ── */
+.wn-tr-wrap {
+    background: #0d1117;
+    border: 1px solid #1e2130;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 0.4rem;
+}
+.wn-tr-toolbar {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid #1e2130;
+    gap: 8px;
+    background: #111827;
+}
+.wn-tr-count {
+    flex: 1;
+    font-size: 0.75rem;
+    color: #4b5563;
+    font-family: 'JetBrains Mono', monospace;
+}
+.wn-tr-copy-btn {
+    font-size: 0.76rem;
+    background: #1e2130;
+    border: 1px solid #2d3348;
+    border-radius: 5px;
+    color: #9ca3af;
+    padding: 3px 10px;
+    cursor: pointer;
+    transition: all .15s;
+    white-space: nowrap;
+}
+.wn-tr-copy-btn:hover { border-color: #818cf8; color: #818cf8; }
+.wn-tr-scroll {
+    max-height: 420px;
+    overflow-y: auto;
+}
+.wn-tr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.87rem;
+}
+.wn-tr-row {
+    cursor: pointer;
+    border-bottom: 1px solid #0f1117;
+    transition: background .1s;
+}
+.wn-tr-row:hover { background: #161b27; }
+.wn-tr-row.wn-selected { background: #1e2d4a; }
+.wn-tr-row.wn-selected .wn-tr-text { color: #c7d2fe; }
+.wn-tr-row-plain {
+    border-bottom: 1px solid #0f1117;
+}
+.wn-tr-time {
+    padding: 7px 8px 7px 10px;
+    white-space: nowrap;
+    color: #4b5563;
+    font-size: 0.76rem;
+    font-family: 'JetBrains Mono', monospace;
+    min-width: 108px;
+    vertical-align: top;
+}
+.wn-tr-speaker {
+    padding: 7px 8px;
+    white-space: nowrap;
+    color: #818cf8;
+    font-size: 0.76rem;
+    font-weight: 600;
+    min-width: 88px;
+    vertical-align: top;
+}
+.wn-tr-text {
+    padding: 7px 10px 7px 4px;
+    color: #d1d5db;
+    line-height: 1.65;
+    word-break: break-all;
+    vertical-align: top;
+}
 """

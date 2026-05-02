@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from handlers.category import _out_dir
+from lib.transcript_view import render_html
 
 
 def _scan_audio_files(folder) -> list:
@@ -159,5 +160,5 @@ def on_file_select(selected_json: str, file_paths_val: list):
         t_text, t_path,
         c_text, c_path,
         s_text, s_path,
-        display_text, view_val, display_path,
+        render_html(display_text), view_val, display_path,
     )

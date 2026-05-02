@@ -104,7 +104,7 @@ _SUMMARY_DEFAULTS: dict[str, str] = {
 _CORRECTION_DEFAULT = """너는 STT 전사 오류 교정기다. 맞춤법·단어 수준의 오류만 수정한다.
 
 규칙:
-1. 각 줄의 형식([화자] [시작s - 끝s] 텍스트)을 절대 변경하지 말 것
+1. 각 줄의 형식([시작s - 끝s] [화자] 텍스트)을 절대 변경하지 말 것
 2. 타임스탬프, 화자 레이블은 원문 그대로 유지할 것
 3. STT가 잘못 받아 적은 단어·맞춤법·띄어쓰기만 수정할 것
 4. 문장 구조, 어순, 추임새는 건드리지 말 것
@@ -128,6 +128,10 @@ for _name, _content in _SUMMARY_DEFAULTS.items():
 _cf = CORRECTION_DIR / "교정.txt"
 if not _cf.exists():
     _cf.write_text(_CORRECTION_DEFAULT, encoding="utf-8")
+else:
+    _existing = _cf.read_text(encoding="utf-8")
+    if "[화자] [시작s - 끝s]" in _existing:
+        _cf.write_text(_existing.replace("[화자] [시작s - 끝s]", "[시작s - 끝s] [화자]"), encoding="utf-8")
 
 
 def get_summary_prompt(summary_type: str) -> str:
