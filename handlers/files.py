@@ -97,7 +97,7 @@ def _find_associated_files(wav_path: str) -> dict:
     return result
 
 
-
+def handle_file_selection(selected_json: str, file_paths_val: list):
     """선택된 파일 경로 JSON -> Audio 로드 + 선택 카운트."""
     try:
         selected = json.loads(selected_json) if selected_json else []
