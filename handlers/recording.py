@@ -5,6 +5,7 @@ import gradio as gr
 
 from lib.instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
 from lib.worker import auto_worker
+from lib.transcript_view import render_html
 from handlers.category import _out_dir
 
 
@@ -94,6 +95,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
 
 def handle_stop_recording():
     file_path, msg = recorder.stop()
+    audio_update = gr.update(value=file_path) if file_path else gr.update()
     return (
         gr.update(interactive=True),
         gr.update(interactive=False),
@@ -101,6 +103,7 @@ def handle_stop_recording():
         gr.update(interactive=True, value="마이크 테스트"),
         msg,
         file_path or "",
+        audio_update,
     )
 
 
@@ -164,14 +167,14 @@ def handle_chunk_poll(current_view: str):
             r_pipeline   = gr.update(value=result["status"])
             pipeline_updated = True
             if current_view == "원문":
-                r_display = gr.update(value=result["transcript"])
+                r_display = gr.update(value=render_html(result["transcript"]))
                 r_dfile   = gr.update(value=result["file_path"])
         elif result.get("type") == "correction":
             r_correction = gr.update(value=result["correction"])
             r_cfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
             pipeline_updated = True
-            r_display    = gr.update(value=result["correction"])
+            r_display    = gr.update(value=render_html(result["correction"]))
             r_view       = gr.update(value="교정")
             r_dfile      = gr.update(value=result["file_path"])
         elif result.get("type") == "summary":
