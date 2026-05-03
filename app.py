@@ -167,73 +167,80 @@ _FILE_LIST_JS = """() => {
   }).observe(document.body, {childList: true, subtree: true});
 }"""
 
-_TRANSCRIPT_HEAD = """<script>
-function wnSeekAudio(seconds) {
-  var audio = document.querySelector('#wn-audio-preview audio');
-  if (!audio) { var all = document.querySelectorAll('audio'); if (all.length) audio = all[0]; }
-  if (!audio) return;
-  var wasPlaying = !audio.paused;
-  audio.currentTime = seconds;
-  if (wasPlaying) audio.play();
-}
-
-function wnTrClick(event, row) {
-  var wrap = row.closest('.wn-tr-wrap');
-  if (!wrap) return;
-  if (event.shiftKey && wrap._wnLast) {
-    var rows = Array.from(wrap.querySelectorAll('.wn-tr-row'));
-    var a = rows.indexOf(wrap._wnLast), b = rows.indexOf(row);
-    if (a < 0) a = 0;
-    var s = Math.min(a, b), e = Math.max(a, b);
-    rows.forEach(function(r, i) {
-      if (i >= s && i <= e) r.classList.add('wn-selected');
-      else r.classList.remove('wn-selected');
-    });
-  } else if (event.ctrlKey || event.metaKey) {
-    row.classList.toggle('wn-selected');
-  } else {
-    wrap.querySelectorAll('.wn-tr-row.wn-selected').forEach(function(r) { r.classList.remove('wn-selected'); });
-    row.classList.add('wn-selected');
-    var t = parseFloat(row.dataset.start);
-    if (!isNaN(t)) wnSeekAudio(t);
+_TRANSCRIPT_JS = """() => {
+  function wnSeekAudio(seconds) {
+    var audio = document.querySelector('#wn-audio-preview audio');
+    if (!audio) { var all = document.querySelectorAll('audio'); if (all.length) audio = all[0]; }
+    if (!audio) return;
+    var wasPlaying = !audio.paused;
+    audio.currentTime = seconds;
+    if (wasPlaying) audio.play();
   }
-  if (!event.shiftKey) wrap._wnLast = row;
-  wnTrUpdateCount(wrap);
-}
 
-function wnTrUpdateCount(wrap) {
-  var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected').length;
-  var total = wrap.querySelectorAll('.wn-tr-row').length;
-  var cnt = wrap.querySelector('.wn-tr-count');
-  if (cnt) cnt.textContent = sel > 0 ? sel + '개 선택 / ' + total + '개' : total + '개 세그먼트';
-}
+  function wnTrUpdateCount(wrap) {
+    var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected').length;
+    var total = wrap.querySelectorAll('.wn-tr-row').length;
+    var cnt = wrap.querySelector('.wn-tr-count');
+    if (cnt) cnt.textContent = sel > 0 ? sel + '개 선택 / ' + total + '개' : total + '개 세그먼트';
+  }
 
-function wnTrCopy(btn) {
-  var wrap = btn ? btn.closest('.wn-tr-wrap') : document.querySelector('.wn-tr-wrap');
-  if (!wrap) return;
-  var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected');
-  if (!sel.length) sel = wrap.querySelectorAll('.wn-tr-row');
-  var lines = [];
-  sel.forEach(function(row) {
-    var time = row.querySelector('.wn-tr-time');
-    var speaker = row.querySelector('.wn-tr-speaker');
-    var text = row.querySelector('.wn-tr-text');
-    var line = '';
-    if (time && time.textContent.trim()) line += '[' + time.textContent.trim() + '] ';
-    if (speaker && speaker.textContent.trim()) line += '[' + speaker.textContent.trim() + '] ';
-    if (text) line += text.textContent.trim();
-    if (line.trim()) lines.push(line);
+  function wnTrCopy(btn) {
+    var wrap = btn ? btn.closest('.wn-tr-wrap') : document.querySelector('.wn-tr-wrap');
+    if (!wrap) return;
+    var sel = wrap.querySelectorAll('.wn-tr-row.wn-selected');
+    if (!sel.length) sel = wrap.querySelectorAll('.wn-tr-row');
+    var lines = [];
+    sel.forEach(function(row) {
+      var time = row.querySelector('.wn-tr-time');
+      var speaker = row.querySelector('.wn-tr-speaker');
+      var text = row.querySelector('.wn-tr-text');
+      var line = '';
+      if (time && time.textContent.trim()) line += '[' + time.textContent.trim() + '] ';
+      if (speaker && speaker.textContent.trim()) line += '[' + speaker.textContent.trim() + '] ';
+      if (text) line += text.textContent.trim();
+      if (line.trim()) lines.push(line);
+    });
+    if (navigator.clipboard) navigator.clipboard.writeText(lines.join('\\n')).catch(function() {});
+  }
+
+  document.addEventListener('click', function(e) {
+    var copyBtn = e.target.closest('.wn-tr-copy-btn');
+    if (copyBtn) { wnTrCopy(copyBtn); return; }
+
+    var row = e.target.closest('.wn-tr-row');
+    if (!row || row.classList.contains('wn-tr-row-plain')) return;
+
+    var wrap = row.closest('.wn-tr-wrap');
+    if (!wrap) return;
+
+    if (e.shiftKey && wrap._wnLast) {
+      var rows = Array.from(wrap.querySelectorAll('.wn-tr-row:not(.wn-tr-row-plain)'));
+      var a = rows.indexOf(wrap._wnLast), b = rows.indexOf(row);
+      if (a < 0) a = 0;
+      var s = Math.min(a, b), eIdx = Math.max(a, b);
+      rows.forEach(function(r, i) {
+        if (i >= s && i <= eIdx) r.classList.add('wn-selected');
+        else r.classList.remove('wn-selected');
+      });
+    } else if (e.ctrlKey || e.metaKey) {
+      row.classList.toggle('wn-selected');
+    } else {
+      wrap.querySelectorAll('.wn-tr-row.wn-selected').forEach(function(r) { r.classList.remove('wn-selected'); });
+      row.classList.add('wn-selected');
+      var t = parseFloat(row.dataset.start);
+      if (!isNaN(t)) wnSeekAudio(t);
+    }
+    if (!e.shiftKey) wrap._wnLast = row;
+    wnTrUpdateCount(wrap);
   });
-  if (navigator.clipboard) navigator.clipboard.writeText(lines.join('\\n')).catch(function() {});
-}
-</script>"""
+}"""
 
 
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
-with gr.Blocks(css=CSS, head=_TRANSCRIPT_HEAD, title="WhisperNote") as demo:
+with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
     # ── 헤더 ──
     gr.HTML(f"""
@@ -562,6 +569,7 @@ python app.py
     demo.load(lambda: gr.update(choices=get_input_device_choices(), value=-1), outputs=[input_device])
     demo.load(fn=None, js=_LEVEL_JS)
     demo.load(fn=None, js=_FILE_LIST_JS)
+    demo.load(fn=None, js=_TRANSCRIPT_JS)
     demo.load(
         init_cat_with_last_state,
         inputs=[cat_data],
