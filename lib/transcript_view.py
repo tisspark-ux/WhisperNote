@@ -2,10 +2,13 @@
 import re
 from html import escape
 
-# 형식: [0.0s - 4.2s] [SPEAKER_00] 텍스트  (화자 선택적)
-#       [0.0s - 4.2s] 텍스트
-_SEG_RE = re.compile(
+# 신형: [0.0s - 4.2s] [SPEAKER_00] 텍스트  (화자 선택적)
+_SEG_RE_NEW = re.compile(
     r"^\[(\d+\.?\d*)s\s*-\s*(\d+\.?\d*)s\]\s*(?:\[([^\]]+)\]\s*)?(.+)$"
+)
+# 구형: [SPEAKER_00] [0.0s - 4.2s] 텍스트
+_SEG_RE_OLD = re.compile(
+    r"^\[([^\]]+)\]\s*\[(\d+\.?\d*)s\s*-\s*(\d+\.?\d*)s\]\s*(.+)$"
 )
 
 
@@ -15,7 +18,7 @@ def parse_segments(text: str) -> list[dict]:
         line = line.strip()
         if not line:
             continue
-        m = _SEG_RE.match(line)
+        m = _SEG_RE_NEW.match(line)
         if m:
             segs.append({
                 "start":   float(m.group(1)),
@@ -23,8 +26,17 @@ def parse_segments(text: str) -> list[dict]:
                 "speaker": m.group(3) or "",
                 "text":    m.group(4).strip(),
             })
-        else:
-            segs.append({"start": None, "end": None, "speaker": "", "text": line})
+            continue
+        m = _SEG_RE_OLD.match(line)
+        if m:
+            segs.append({
+                "start":   float(m.group(2)),
+                "end":     float(m.group(3)),
+                "speaker": m.group(1).strip(),
+                "text":    m.group(4).strip(),
+            })
+            continue
+        segs.append({"start": None, "end": None, "speaker": "", "text": line})
     return segs
 
 
@@ -44,15 +56,15 @@ def render_html(text: str) -> str:
     for seg in segs:
         timed = seg["start"] is not None
         data  = f' data-start="{seg["start"]}"' if timed else ""
+        # onclick 인라인 핸들러 없이 data-start 속성만 부여 → 이벤트 위임으로 처리
         cls   = "wn-tr-row" if timed else "wn-tr-row wn-tr-row-plain"
-        click = ' onclick="wnTrClick(event,this)"' if timed else ""
 
         time_td = speaker_td = ""
         if has_time:
             if timed:
                 time_td = (
                     f'<td class="wn-tr-time">'
-                    f'{seg["start"]:.1f}&#8202;–&#8202;{seg["end"]:.1f}s'
+                    f'{seg["start"]:.1f}&#8202;&#8211;&#8202;{seg["end"]:.1f}s'
                     f'</td>'
                 )
             else:
@@ -62,16 +74,17 @@ def render_html(text: str) -> str:
 
         text_td = f'<td class="wn-tr-text">{escape(seg["text"])}</td>'
         rows.append(
-            f'<tr class="{cls}"{data}{click}>'
+            f'<tr class="{cls}"{data}>'
             f'{time_td}{speaker_td}{text_td}'
             f'</tr>'
         )
 
     total   = len(segs)
+    # 복사 버튼도 onclick 없이 → 이벤트 위임으로 처리
     toolbar = (
         f'<div class="wn-tr-toolbar">'
         f'<span class="wn-tr-count">{total}개 세그먼트</span>'
-        f'<button class="wn-tr-copy-btn" onclick="wnTrCopy(this)">&#128203; 선택 복사</button>'
+        f'<button class="wn-tr-copy-btn">&#128203; 선택 복사</button>'
         f'</div>'
     )
 
