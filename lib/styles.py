@@ -347,10 +347,22 @@ body, .gradio-container {
 .wn-tr-row-plain {
     border-bottom: 1px solid #0f1117;
 }
+.wn-tr-head { background: #111827; }
+.wn-tr-th {
+    padding: 6px 8px 6px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #6b7280;
+    border-bottom: 1px solid #1e2130;
+    white-space: nowrap;
+}
+.wn-tr-th.wn-tr-text { padding-left: 4px; }
 .wn-tr-time {
     padding: 7px 8px 7px 10px;
     white-space: nowrap;
-    color: #4b5563;
+    color: #cbd5e1;
     font-size: 0.76rem;
     font-family: 'JetBrains Mono', monospace;
     min-width: 108px;

@@ -62,6 +62,15 @@ def render_html(text: str) -> str:
     has_speaker = any(s["speaker"] for s in segs)
     has_time    = any(s["start"] is not None for s in segs)
 
+    # 헤더
+    thead_cells = ""
+    if has_time:
+        thead_cells += '<th class="wn-tr-th wn-tr-time">시간</th>'
+    if has_speaker:
+        thead_cells += '<th class="wn-tr-th wn-tr-speaker">발화자</th>'
+    thead_cells += '<th class="wn-tr-th wn-tr-text">내용</th>'
+    thead = f'<thead><tr class="wn-tr-head">{thead_cells}</tr></thead>'
+
     rows = []
     for seg in segs:
         timed = seg["start"] is not None
@@ -102,7 +111,7 @@ def render_html(text: str) -> str:
         f'<div class="wn-tr-wrap">'
         f'{toolbar}'
         f'<div class="wn-tr-scroll">'
-        f'<table class="wn-tr-table"><tbody>{"".join(rows)}</tbody></table>'
+        f'<table class="wn-tr-table">{thead}<tbody>{"".join(rows)}</tbody></table>'
         f'</div>'
         f'</div>'
     )
