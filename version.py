@@ -1,4 +1,4 @@
-__version__ = "1.0.73"
+__version__ = "1.0.74"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,13 @@ __version__ = "1.0.73"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.74 (2026-05-04)
+  - [수정] 오디오 시크 근본 해결: gr.Audio(WaveSurfer) → gr.HTML(<audio>) 교체
+    - WaveSurfer의 외부 currentTime 변경 무반응 문제 우회
+    - audio.currentTime = seconds 한 줄로 확실하게 동작
+    - lib/transcript_view.py: audio_html() 헬퍼 추가 (Gradio /file= 엔드포인트 사용)
+    - handlers/recording.py, handlers/files.py: audio 출력 HTML 문자열로 변경
+
 v1.0.73 (2026-05-04)
   - [수정] 오디오 시크: canvas 클릭 시뮬레이션 제거 → currentTime 직접 설정 + timeupdate 이벤트 dispatch
 

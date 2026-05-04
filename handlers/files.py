@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from handlers.category import _out_dir
-from lib.transcript_view import render_html
+from lib.transcript_view import render_html, audio_html
 
 
 def _scan_audio_files(folder) -> list:
@@ -156,7 +156,7 @@ def on_file_select(selected_json: str, file_paths_val: list):
             display_text, display_path, view_val = t_text, t_path, "원문"
 
     return (
-        audio_val, count_html, audio_val or "",
+        audio_html(audio_val or ""), count_html, audio_val or "",
         t_text, t_path,
         c_text, c_path,
         s_text, s_path,

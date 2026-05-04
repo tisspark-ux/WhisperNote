@@ -1,6 +1,16 @@
 """transcript_view.py — 전사/교정 텍스트를 인터랙티브 HTML 테이블로 렌더링."""
 import re
 from html import escape
+from pathlib import Path
+
+
+def audio_html(file_path: str) -> str:
+    """오디오 파일 경로를 HTML <audio> 태그로 변환. Gradio /file= 엔드포인트 사용."""
+    base = '<audio id="wn-audio-player" controls style="width:100%;outline:none;border-radius:6px"'
+    if file_path:
+        p = Path(file_path).as_posix()
+        return f'{base} src="/file={p}"></audio>'
+    return f'{base}></audio>'
 
 # 신형: [0.0s - 4.2s] [SPEAKER_00] 텍스트  (화자 선택적)
 _SEG_RE_NEW = re.compile(
