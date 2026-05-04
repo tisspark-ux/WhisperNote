@@ -84,25 +84,58 @@ def on_panel_l3(data, l1_id, l2_id, l3_id):
 
 def on_l1_change(data, l1_id):
     from handlers.files import load_folder_file_list
-    save_last_category(l1_id, None, None)
+    # 앱 시작 시 demo.load가 cat_l1을 설정하면 이 핸들러가 연쇄 실행됨.
+    # 저장된 상태의 l1과 일치하면 l2/l3도 복원 (초기화 복원 지원).
+    state = load_last_category()
+    if state.get("l1") == l1_id:
+        l2_id = state.get("l2")
+        l3_id = state.get("l3")
+    else:
+        l2_id = l3_id = None
+
     l2_ch = _cat_choices(data, l1_id)
-    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, None, None)
+    l2_ids = [i for _, i in l2_ch]
+    if l2_id not in l2_ids:
+        l2_id = l3_id = None
+
+    if l2_id:
+        l3_ch = _cat_choices(data, l2_id)
+        l3_ids = [i for _, i in l3_ch]
+        if l3_id not in l3_ids:
+            l3_id = None
+    else:
+        l3_ch = []
+        l3_id = None
+
+    save_last_category(l1_id, l2_id, l3_id)
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, l3_id)
     return (
-        gr.update(choices=l2_ch, value=None),
-        gr.update(choices=[], value=None),
-        _path_html(data, l1_id, None, None),
+        gr.update(choices=l2_ch, value=l2_id),
+        gr.update(choices=l3_ch, value=l3_id),
+        _path_html(data, l1_id, l2_id, l3_id),
         file_html, file_paths, file_count,
     )
 
 
 def on_l2_change(data, l1_id, l2_id):
     from handlers.files import load_folder_file_list
-    save_last_category(l1_id, l2_id, None)
+    # on_l1_change가 l2를 복원할 때 이 핸들러가 연쇄 실행됨. l3도 복원.
+    state = load_last_category()
+    if state.get("l1") == l1_id and state.get("l2") == l2_id:
+        l3_id = state.get("l3")
+    else:
+        l3_id = None
+
     l3_ch = _cat_choices(data, l2_id)
-    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, None)
+    l3_ids = [i for _, i in l3_ch]
+    if l3_id not in l3_ids:
+        l3_id = None
+
+    save_last_category(l1_id, l2_id, l3_id)
+    file_html, file_paths, file_count = load_folder_file_list(data, l1_id, l2_id, l3_id)
     return (
-        gr.update(choices=l3_ch, value=None),
-        _path_html(data, l1_id, l2_id, None),
+        gr.update(choices=l3_ch, value=l3_id),
+        _path_html(data, l1_id, l2_id, l3_id),
         file_html, file_paths, file_count,
     )
 
