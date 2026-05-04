@@ -349,7 +349,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                     summary_type = gr.Dropdown(
                         label="요약 구분",
                         choices=prompts.list_summary_types(),
-                        value="회의",
+                        value="면담",
                         interactive=True,
                         elem_classes="wn-dropdown",
                         scale=1,
