@@ -5,7 +5,7 @@ import gradio as gr
 
 from lib.instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
 from lib.worker import auto_worker
-from lib.transcript_view import render_html
+from lib.transcript_view import render_html, audio_html
 from handlers.category import _out_dir
 
 
@@ -95,7 +95,6 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
 
 def handle_stop_recording():
     file_path, msg = recorder.stop()
-    audio_update = gr.update(value=file_path) if file_path else gr.update()
     return (
         gr.update(interactive=True),
         gr.update(interactive=False),
@@ -103,7 +102,7 @@ def handle_stop_recording():
         gr.update(interactive=True, value="마이크 테스트"),
         msg,
         file_path or "",
-        audio_update,
+        audio_html(file_path or ""),
     )
 
 

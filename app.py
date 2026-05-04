@@ -169,15 +169,10 @@ _FILE_LIST_JS = """() => {
 
 _TRANSCRIPT_JS = """() => {
   function wnSeekAudio(seconds) {
-    var audio = document.querySelector('#wn-audio-preview audio');
-    if (!audio) { var all = document.querySelectorAll('audio'); if (all.length) audio = all[0]; }
+    var audio = document.getElementById('wn-audio-player');
     if (!audio) return;
     var wasPlaying = !audio.paused;
     audio.currentTime = seconds;
-    // WaveSurfer는 timeupdate 이벤트를 받아야 위치를 다시 렌더링함
-    ['seeking', 'seeked', 'timeupdate'].forEach(function(ev) {
-      audio.dispatchEvent(new Event(ev));
-    });
     if (wasPlaying) audio.play();
   }
 
@@ -426,7 +421,11 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_classes="wn-hidden-input",
                         lines=1,
                     )
-                    audio_preview = gr.Audio(label="재생", type="filepath", interactive=False, elem_id="wn-audio-preview")
+                    audio_preview = gr.HTML(
+                        value='<audio id="wn-audio-player" controls style="width:100%;outline:none;border-radius:6px"></audio>',
+                        label="재생",
+                        elem_id="wn-audio-preview",
+                    )
                     uploaded_file = gr.Textbox(visible=False)
 
                     model_status = gr.HTML("")
