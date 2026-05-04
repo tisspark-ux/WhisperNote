@@ -169,28 +169,16 @@ _FILE_LIST_JS = """() => {
 
 _TRANSCRIPT_JS = """() => {
   function wnSeekAudio(seconds) {
-    var audioWrap = document.querySelector('#wn-audio-preview');
-    var audio = audioWrap ? audioWrap.querySelector('audio') : null;
-    if (!audio) { audio = document.querySelector('audio'); audioWrap = audio ? (audio.closest('[id]') || document.body) : null; }
+    var audio = document.querySelector('#wn-audio-preview audio');
+    if (!audio) { var all = document.querySelectorAll('audio'); if (all.length) audio = all[0]; }
     if (!audio) return;
-    var duration = audio.duration;
-    if (!duration || isNaN(duration) || duration <= 0) { audio.currentTime = seconds; return; }
     var wasPlaying = !audio.paused;
-    var pct = Math.min(seconds / duration, 1.0);
-    // WaveSurfer는 canvas click 이벤트로 seek 처리 → 캔버스에 클릭 시뮬레이션
-    var canvas = audioWrap ? audioWrap.querySelector('canvas') : null;
-    if (canvas) {
-      var rect = canvas.getBoundingClientRect();
-      canvas.dispatchEvent(new MouseEvent('click', {
-        bubbles: true, cancelable: true, view: window,
-        clientX: rect.left + rect.width * pct,
-        clientY: rect.top + rect.height / 2,
-      }));
-      if (wasPlaying) setTimeout(function() { if (audio.paused) audio.play(); }, 100);
-    } else {
-      audio.currentTime = seconds;
-      if (wasPlaying) audio.play();
-    }
+    audio.currentTime = seconds;
+    // WaveSurfer는 timeupdate 이벤트를 받아야 위치를 다시 렌더링함
+    ['seeking', 'seeked', 'timeupdate'].forEach(function(ev) {
+      audio.dispatchEvent(new Event(ev));
+    });
+    if (wasPlaying) audio.play();
   }
 
   function wnTrUpdateCount(wrap) {
