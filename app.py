@@ -46,7 +46,7 @@ from handlers.category import (
 from handlers.files import (_render_file_list, load_folder_file_list,
     handle_upload_files, handle_remove_selected, handle_clear_file_list,
     handle_file_selection, on_file_select)
-from config import OLLAMA_MODEL
+from config import OLLAMA_MODEL, OUTPUTS_DIR
 from handlers.ai import (handle_transcribe, handle_correct, handle_load_transcripts,
     handle_summarize, handle_pipeline, handle_file_list_process,
     refresh_ollama_models, list_audio_devices, get_input_device_choices)
@@ -794,6 +794,7 @@ if __name__ == "__main__":
         inbrowser=False,  # run.bat 에서 프록시 우회 플래그로 직접 실행
         show_api=False,
         prevent_thread_lock=True,
+        allowed_paths=[str(OUTPUTS_DIR.resolve().parent)],  # outputs 상위 폴더 전체 허용 → /file= 서빙
     )
     _app.get("/api/level")(_api_level)
     # _start_heartbeat_watcher()  # 백그라운드 탭 throttle 오탐 문제로 임시 비활성화
