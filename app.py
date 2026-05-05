@@ -442,10 +442,6 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         btn_summarize = gr.Button(
                             "요약만", elem_classes="wn-btn-secondary", scale=1
                         )
-
-                # ── 오른쪽 결과 패널 ──────────────────────────
-                with gr.Column(scale=2, elem_classes="wn-card"):
-
                     pipeline_status = gr.Textbox(
                         value="",
                         interactive=False,
@@ -465,6 +461,9 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_id="queue-status",
                         visible=True,
                     )
+
+                # ── 오른쪽 결과 패널 ──────────────────────────
+                with gr.Column(scale=2, elem_classes="wn-card"):
 
                     with gr.Row(elem_classes="wn-view-row"):
                         gr.HTML('<div class="wn-label" style="margin-top:.8rem;flex:1">전사 결과</div>')
