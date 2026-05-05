@@ -293,6 +293,10 @@ body, .gradio-container {
     pointer-events: none !important;
 }
 
+/* ── 오디오 플레이어 여백 축소 ── */
+#wn-audio-preview { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+#wn-audio-preview > div { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+
 /* ── 전사/교정 인터랙티브 테이블 ── */
 .wn-tr-wrap {
     background: #0d1117;
