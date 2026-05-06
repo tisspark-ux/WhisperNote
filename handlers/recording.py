@@ -5,7 +5,7 @@ import gradio as gr
 
 from lib.instances import recorder, LOOPBACK_AUTO, REMOTE_AUTO, WASAPI_AUTO, MIX_AUTO
 from lib.worker import auto_worker
-from lib.transcript_view import render_html, audio_html
+from lib.transcript_view import render_html, audio_html, render_audio_map
 from handlers.category import _out_dir
 
 
@@ -130,6 +130,7 @@ def handle_chunk_poll(current_view: str):
     r_dfile      = gr.update()
     r_summary    = gr.update()
     r_sfile      = gr.update()
+    r_audio_map  = gr.update()
 
     # 청크 알림
     msg = recorder.pop_chunk_message()
@@ -168,6 +169,7 @@ def handle_chunk_poll(current_view: str):
             if current_view == "원문":
                 r_display = gr.update(value=render_html(result["transcript"]))
                 r_dfile   = gr.update(value=result["file_path"])
+            r_audio_map = gr.update(value=render_audio_map(auto_worker.get_part_audio_map()))
         elif result.get("type") == "correction":
             r_correction = gr.update(value=result["correction"])
             r_cfile      = gr.update(value=result["file_path"])
@@ -176,6 +178,7 @@ def handle_chunk_poll(current_view: str):
             r_display    = gr.update(value=render_html(result["correction"]))
             r_view       = gr.update(value="교정")
             r_dfile      = gr.update(value=result["file_path"])
+            r_audio_map  = gr.update(value=render_audio_map(auto_worker.get_part_audio_map()))
         elif result.get("type") == "summary":
             r_summary  = gr.update(value=result["summary"])
             r_sfile    = gr.update(value=result["file_path"])
@@ -202,6 +205,7 @@ def handle_chunk_poll(current_view: str):
         r_pipeline, r_queue, r_timer,
         r_display, r_view, r_dfile,
         r_summary, r_sfile,
+        r_audio_map,
     )
 
 
