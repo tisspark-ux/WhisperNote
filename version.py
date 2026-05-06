@@ -1,4 +1,4 @@
-__version__ = "1.0.79"
+__version__ = "1.0.80"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,17 @@ __version__ = "1.0.79"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.80 (2026-05-06)
+  - [수정] 합본 전사 시크 파트 불일치 수정
+    - 원인: 파트 N의 타임스탬프가 해당 파트 wav 기준 0초부터이므로,
+      다른 파트 행 클릭 시 현재 로드된 오디오를 엉뚱한 위치로 시크
+    - 수정: auto_worker가 파트별 wav 경로 추적 (_part_audio_map)
+    - render_audio_map(): 파트 번호 → /file= 경로를 숨김 div data 속성으로 렌더링
+    - handle_chunk_poll: 전사/교정 결과 수신 시 audio_map_display 갱신
+    - transcript_view.render_html(): [파트 N] 마커 파싱, data-part 속성 + 파트 헤더 행 추가
+    - _TRANSCRIPT_JS.wnSeekAudio(seconds, partN): 파트 변경 시 audio.src 교체 후 시크
+    - lib/styles.py: .wn-tr-part-header / .wn-tr-part-label CSS 추가
+
 v1.0.79 (2026-05-06)
   - [수정] 교정 프롬프트: 합본 전사문의 [파트 N] 마커 처리 규칙 추가
     - 원인: [파트 N - HH:MM:SS ~ HH:MM:SS] 줄을 프롬프트가 설명 안 해 LLM이 섹션 헤더로 해석 → 요약처럼 출력

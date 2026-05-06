@@ -388,4 +388,19 @@ body, .gradio-container {
     word-break: break-all;
     vertical-align: top;
 }
+
+/* ── 파트 구분 헤더 행 ── */
+.wn-tr-part-header {
+    background: #1a1f30 !important;
+}
+.wn-tr-part-label {
+    padding: 5px 10px !important;
+    font-size: 0.74rem !important;
+    font-weight: 600 !important;
+    color: #818cf8 !important;
+    font-family: 'JetBrains Mono', monospace !important;
+    letter-spacing: 0.03em !important;
+    border-top: 1px solid #2d3348 !important;
+    border-bottom: 1px solid #1e2130 !important;
+}
 """

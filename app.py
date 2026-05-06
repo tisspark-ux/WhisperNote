@@ -168,10 +168,29 @@ _FILE_LIST_JS = """() => {
 }"""
 
 _TRANSCRIPT_JS = """() => {
-  function wnSeekAudio(seconds) {
+  function wnSeekAudio(seconds, partN) {
     var audio = document.getElementById('wn-audio-player');
     if (!audio) return;
     var wasPlaying = !audio.paused;
+    if (partN) {
+      var map = document.getElementById('wn-audio-map');
+      if (map) {
+        var newSrc = map.getAttribute('data-part-' + partN);
+        if (newSrc) {
+          var curSrc = audio.getAttribute('src') || '';
+          if (curSrc !== newSrc) {
+            audio.src = newSrc;
+            audio.addEventListener('loadedmetadata', function onMeta() {
+              audio.removeEventListener('loadedmetadata', onMeta);
+              audio.currentTime = seconds;
+              if (wasPlaying) audio.play();
+            });
+            audio.load();
+            return;
+          }
+        }
+      }
+    }
     audio.currentTime = seconds;
     if (wasPlaying) audio.play();
   }
@@ -227,7 +246,8 @@ _TRANSCRIPT_JS = """() => {
       wrap.querySelectorAll('.wn-tr-row.wn-selected').forEach(function(r) { r.classList.remove('wn-selected'); });
       row.classList.add('wn-selected');
       var t = parseFloat(row.dataset.start);
-      if (!isNaN(t)) wnSeekAudio(t);
+      var partN = parseInt(row.dataset.part) || 0;
+      if (!isNaN(t)) wnSeekAudio(t, partN);
     }
     if (!e.shiftKey) wrap._wnLast = row;
     wnTrUpdateCount(wrap);
@@ -425,6 +445,10 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         value='<audio id="wn-audio-player" controls style="width:100%;outline:none;border-radius:6px"></audio>',
                         label="재생",
                         elem_id="wn-audio-preview",
+                    )
+                    audio_map_display = gr.HTML(
+                        value='<div id="wn-audio-map" style="display:none"></div>',
+                        visible=True,
                     )
                     uploaded_file = gr.Textbox(visible=False)
 
@@ -663,6 +687,7 @@ python app.py
         chunk_poll_timer,
         text_display, view_radio, display_file_path,
         summary_output, summary_file_path,
+        audio_map_display,
     ]
     chunk_poll_timer.tick(
         handle_chunk_poll,

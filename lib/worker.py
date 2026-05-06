@@ -33,6 +33,7 @@ class AutoTranscriptionWorker:
         self._finalize_triggered: bool = False
         self._corrected_path: Path | None = None
         self._progress_msg: str = ""
+        self._part_audio_map: dict[int, str] = {}
 
     # ── 세션 초기화 ──────────────────────────────────────────
     def reset(self, combined_path: Path | None, out_dir: Path | None,
@@ -50,6 +51,7 @@ class AutoTranscriptionWorker:
             self._session_active = True
             self._finalize_triggered = False
             self._progress_msg = ""
+            self._part_audio_map = {}
 
     # ── 대기열 관리 ──────────────────────────────────────────
     def _make_label(self, job: dict) -> str:
@@ -98,6 +100,10 @@ class AutoTranscriptionWorker:
             "has_parts": True,
         }
         self.enqueue(job)
+
+    def get_part_audio_map(self) -> dict:
+        with self._lock:
+            return dict(self._part_audio_map)
 
     def pop_result(self) -> dict | None:
         with self._lock:
@@ -169,6 +175,8 @@ class AutoTranscriptionWorker:
         )
 
         if has_parts:
+            with self._lock:
+                self._part_audio_map[part_index] = wav_path
             header = (
                 f"[파트 {part_index} - "
                 f"{_fmt_sec(start_sec)} ~ {_fmt_sec(end_sec)}]\n"
