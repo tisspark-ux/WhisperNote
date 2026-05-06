@@ -26,6 +26,31 @@ _logger = get_logger("transcriber")
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
+# 한국어 회의에서 나올 수 없는 문자 블록 (환각 감지용)
+_HALLUCINATION_RANGES = [
+    (0x0100, 0x017F),  # Latin Extended-A (ł ą ě 등 폴란드/체코어)
+    (0x0400, 0x052F),  # Cyrillic + Supplement (С Т В 등 라틴처럼 보이는 키릴)
+    (0x0530, 0x05FF),  # Armenian + Hebrew
+    (0x0600, 0x06FF),  # Arabic
+    (0x0900, 0x097F),  # Devanagari
+    (0x0E00, 0x0E7F),  # Thai
+    (0x10A0, 0x10FF),  # Georgian
+    (0x3040, 0x30FF),  # Hiragana + Katakana (の は 등)
+]
+_HALLUCINATION_CHARS = {'◆', '�', '■', '▪'}  # ◆ □ ▪ 등
+
+
+def _has_hallucination(text: str) -> bool:
+    """환각 문자(비한국어 스크립트)가 포함되어 있으면 True."""
+    for ch in text:
+        if ch in _HALLUCINATION_CHARS:
+            return True
+        cp = ord(ch)
+        for start, end in _HALLUCINATION_RANGES:
+            if start <= cp <= end:
+                return True
+    return False
+
 SAMPLE_RATE = 16000
 
 
@@ -209,7 +234,7 @@ class Transcriber:
             condition_on_previous_text=False,
             no_speech_threshold=0.5,
             compression_ratio_threshold=1.35,
-            log_prob_threshold=-1.0,
+            log_prob_threshold=-0.7,
         )
         dur = fw_info.duration or 1.0
         print(
@@ -253,6 +278,14 @@ class Transcriber:
             print("[전사] 타임스탬프 정렬 완료", flush=True)
         except Exception as exc:
             print(f"[전사] 타임스탬프 정렬 생략 (오류: {exc})", flush=True)
+
+        # 환각 세그먼트 필터 (비한국어 스크립트 감지)
+        before = len(segments)
+        segments = [s for s in segments if not _has_hallucination(s.get("text", ""))]
+        removed = before - len(segments)
+        if removed:
+            print(f"[전사] 환각 필터: {removed}개 세그먼트 제거", flush=True)
+            _logger.info("환각 필터: %d개 제거 (총 %d개)", removed, before)
 
         # 화자 분리(Diarization) — resemblyzer 기반, 완전 오프라인
         diarization_ok = False
