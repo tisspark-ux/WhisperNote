@@ -1,4 +1,4 @@
-__version__ = "1.0.84"
+__version__ = "1.0.85"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,11 @@ __version__ = "1.0.84"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.85 (2026-05-06)
+  - [수정] install.bat 설치 순서 변경: requirements.txt 먼저 설치 후 PyTorch GPU 설치
+    - 기존: PyTorch GPU 설치 -> requirements.txt (CPU로 덮어씌워지는 문제)
+    - 변경: requirements.txt -> PyTorch GPU 설치 (마지막에 GPU 버전으로 확정)
+
 v1.0.84 (2026-05-06)
   - [추가] 설치/전사 날짜별 로그 파일
     - core/install_torch.py: logs/install_YYYY-MM-DD.log (GPU감지, 선택, 설치결과 기록)

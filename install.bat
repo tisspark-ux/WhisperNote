@@ -45,30 +45,23 @@ set PYTHON=.venv\Scripts\python.exe
 rem Upgrade pip - silent (instant, no progress needed)
 %PYTHON% -m pip install --upgrade pip -q >> %LOG% 2>&1
 
-rem PyTorch (GPU/CPU auto-detect and user selection)
-echo [2/5] PyTorch...
-%PYTHON% core\install_torch.py
-if errorlevel 1 (
-    pause & exit /b 1
-)
-
-rem Other packages
-echo [3/5] Installing packages...
-echo   [3a] webrtcvad-wheels...
+rem Other packages first (torch will be overwritten by install_torch.py after)
+echo [2/5] Installing packages...
+echo   [2a] webrtcvad-wheels...
 %PIP% install webrtcvad-wheels -q 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] webrtcvad-wheels failed. Error details:
     type %LOG%
     pause & exit /b 1
 )
-echo   [3b] resemblyzer...
+echo   [2b] resemblyzer...
 %PIP% install resemblyzer --no-deps -q 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] resemblyzer failed. Error details:
     type %LOG%
     pause & exit /b 1
 )
-echo   [3c] requirements.txt (may take a few minutes)...
+echo   [2c] requirements.txt (may take a few minutes)...
 %PIP% install -r requirements.txt 2>> %LOG%
 if errorlevel 1 (
     echo [ERROR] requirements.txt failed. Error details:
@@ -76,6 +69,13 @@ if errorlevel 1 (
     pause & exit /b 1
 )
 echo   Packages installed.
+
+rem PyTorch (GPU/CPU auto-detect) - runs after requirements.txt to avoid CPU overwrite
+echo [3/5] PyTorch...
+%PYTHON% core\install_torch.py
+if errorlevel 1 (
+    pause & exit /b 1
+)
 
 rem Whisper model pre-download (download only, no model loading)
 echo [4/5] Downloading Whisper model (first time only, may take several minutes)...
