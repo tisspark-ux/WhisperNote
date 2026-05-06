@@ -20,6 +20,9 @@ from config import (
     WHISPER_MODEL,
     WHISPER_VAD_FILTER,
 )
+from lib.logger import get_logger
+
+_logger = get_logger("transcriber")
 
 OUTPUTS_DIR.mkdir(exist_ok=True)
 
@@ -91,7 +94,9 @@ class Transcriber:
             else:
                 gpu_info = " (GPU 없음 → CPU 사용, 속도 느림)"
 
-            print(f"[전사] 모델 로딩 중: {WHISPER_MODEL} / {self.device}{gpu_info} / {self.compute_type}", flush=True)
+            load_msg = f"모델 로딩 중: {WHISPER_MODEL} / {self.device}{gpu_info} / {self.compute_type}"
+            print(f"[전사] {load_msg}", flush=True)
+            _logger.info(load_msg)
 
             if not self._is_model_cached():
                 _SIZE = {
@@ -110,6 +115,7 @@ class Transcriber:
                     download_root=str(Path(__file__).parent.parent / "models"),
                 )
 
+            _logger.info("모델 로딩 완료")
             print("[전사] 모델 로딩 완료", flush=True)
 
     def _load_with_progress(self) -> "WhisperModel":
@@ -186,6 +192,7 @@ class Transcriber:
             if on_progress:
                 on_progress(pct, msg)
 
+        _logger.info("전사 시작: %s", Path(audio_path).name)
         print(f"[전사] 시작: {Path(audio_path).name}", flush=True)
 
         _progress(0.0, "Whisper 모델 로딩 중...")
@@ -288,6 +295,7 @@ class Transcriber:
         except OSError as exc:
             raise RuntimeError(f"전사 파일 저장 실패 ({output_file}): {exc}") from exc
 
+        _logger.info("전사 완료: %s | %d세그먼트 | device=%s", output_file.name, len(lines), self.device)
         print(f"[전사] 저장 완료: {output_file}", flush=True)
         _progress(1.0, f"전사 완료: {output_file.name}")
         return transcript, str(output_file)

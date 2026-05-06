@@ -1,4 +1,4 @@
-__version__ = "1.0.83"
+__version__ = "1.0.84"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,12 @@ __version__ = "1.0.83"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.84 (2026-05-06)
+  - [추가] 설치/전사 날짜별 로그 파일
+    - core/install_torch.py: logs/install_YYYY-MM-DD.log (GPU감지, 선택, 설치결과 기록)
+    - lib/logger.py: logs/whispernote_YYYY-MM-DD.log (날짜별 파일로 변경)
+    - core/transcriber.py: 전사 시작/완료/GPU모드를 whispernote_YYYY-MM-DD.log에 기록
+
 v1.0.83 (2026-05-06)
   - [변경] 교정 완료 후 뷰를 "원문"으로 유지 (기존: 자동으로 "교정" 전환)
     - handle_correct: 교정 저장만, text_display/view_radio 변경 안 함
