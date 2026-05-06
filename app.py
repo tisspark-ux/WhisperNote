@@ -731,6 +731,7 @@ python app.py
             correction_output, corrected_file_path,
             summary_output, summary_file_path,
             text_display, view_radio, display_file_path,
+            audio_map_display,
         ],
     )
 

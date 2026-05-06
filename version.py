@@ -1,4 +1,4 @@
-__version__ = "1.0.85"
+__version__ = "1.0.86"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,12 @@ __version__ = "1.0.85"
 # =============================================================================
 
 CHANGELOG = """
+v1.0.86 (2026-05-06)
+  - [수정] 합본 전사문 클릭 시 파트 오디오 파일 전환 안 되는 버그
+    - on_file_select: 파트 오디오 맵 자동 탐색 후 audio_map_display 업데이트
+    - _build_part_audio_map(): {base}_part{N}.* 파일을 스캔해 파트 인덱스 매핑
+    - app.py: selected_paths.change outputs에 audio_map_display 추가
+
 v1.0.85 (2026-05-06)
   - [수정] install.bat 설치 순서 변경: requirements.txt 먼저 설치 후 PyTorch GPU 설치
     - 기존: PyTorch GPU 설치 -> requirements.txt (CPU로 덮어씌워지는 문제)

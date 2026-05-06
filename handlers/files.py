@@ -1,9 +1,10 @@
 """handlers_files.py — 파일 목록 UI 헬퍼 및 이벤트 핸들러."""
 import json
+import re
 from pathlib import Path
 
 from handlers.category import _out_dir
-from lib.transcript_view import render_html, audio_html
+from lib.transcript_view import render_html, audio_html, render_audio_map
 
 
 def _scan_audio_files(folder) -> list:
@@ -98,6 +99,24 @@ def _find_associated_files(wav_path: str) -> dict:
     return result
 
 
+def _build_part_audio_map(wav_path: str) -> dict:
+    """wav 파일 기준으로 같은 베이스의 파트 오디오 파일 탐색.
+    반환: {part_index: wav_path, ...}  — 파트가 없으면 빈 dict
+    """
+    p = Path(wav_path)
+    d = p.parent
+    base = p.stem.split("_part")[0]
+    exts = {".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm"}
+    part_map = {}
+    for f in d.iterdir():
+        if f.suffix.lower() not in exts:
+            continue
+        m = re.match(rf"^{re.escape(base)}_part(\d+)", f.stem, re.IGNORECASE)
+        if m:
+            part_map[int(m.group(1))] = str(f)
+    return part_map
+
+
 def handle_file_selection(selected_json: str, file_paths_val: list):
     """선택된 파일 경로 JSON -> Audio 로드 + 선택 카운트."""
     try:
@@ -144,6 +163,7 @@ def on_file_select(selected_json: str, file_paths_val: list):
     display_text = display_path = ""
     view_val = gr.update()
 
+    part_map = {}
     if audio_val:
         assoc = _find_associated_files(audio_val)
         t_text, t_path = assoc["transcript"]
@@ -155,10 +175,13 @@ def on_file_select(selected_json: str, file_paths_val: list):
         elif c_text:
             display_text, display_path, view_val = c_text, c_path, "교정"
 
+        part_map = _build_part_audio_map(audio_val)
+
     return (
         audio_html(audio_val or ""), count_html, audio_val or "",
         t_text, t_path,
         c_text, c_path,
         s_text, s_path,
         render_html(display_text), view_val, display_path,
+        render_audio_map(part_map),
     )
