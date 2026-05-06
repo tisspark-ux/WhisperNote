@@ -369,7 +369,7 @@ body, .gradio-container {
     color: #cbd5e1;
     font-size: 0.76rem;
     font-family: 'JetBrains Mono', monospace;
-    min-width: 108px;
+    min-width: 180px;
     vertical-align: top;
 }
 .wn-tr-speaker {
