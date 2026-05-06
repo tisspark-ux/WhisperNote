@@ -175,9 +175,6 @@ def handle_chunk_poll(current_view: str):
             r_cfile      = gr.update(value=result["file_path"])
             r_pipeline   = gr.update(value=result["status"])
             pipeline_updated = True
-            r_display    = gr.update(value=render_html(result["correction"]))
-            r_view       = gr.update(value="교정")
-            r_dfile      = gr.update(value=result["file_path"])
             r_audio_map  = gr.update(value=render_audio_map(auto_worker.get_part_audio_map()))
         elif result.get("type") == "summary":
             r_summary  = gr.update(value=result["summary"])
