@@ -213,7 +213,10 @@ _TRANSCRIPT_JS = """() => {
       var speaker = row.querySelector('.wn-tr-speaker');
       var text = row.querySelector('.wn-tr-text');
       var line = '';
-      if (time && time.textContent.trim()) line += '[' + time.textContent.trim() + '] ';
+      if (time && time.textContent.trim()) {
+        var t = time.textContent.replace(/ /g, '').replace(/–/g, ' - ').trim();
+        line += '[' + t + '] ';
+      }
       if (speaker && speaker.textContent.trim()) line += '[' + speaker.textContent.trim() + '] ';
       if (text) line += text.textContent.trim();
       if (line.trim()) lines.push(line);
