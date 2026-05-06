@@ -150,10 +150,10 @@ def on_file_select(selected_json: str, file_paths_val: list):
         c_text, c_path = assoc["correction"]
         s_text, s_path = assoc["summary"]
 
-        if c_text:
-            display_text, display_path, view_val = c_text, c_path, "교정"
-        elif t_text:
+        if t_text:
             display_text, display_path, view_val = t_text, t_path, "원문"
+        elif c_text:
+            display_text, display_path, view_val = c_text, c_path, "교정"
 
     return (
         audio_html(audio_val or ""), count_html, audio_val or "",

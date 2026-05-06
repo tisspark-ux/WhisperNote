@@ -74,7 +74,7 @@ def handle_correct(
         progress(1.0, desc="교정 완료!")
         return (
             corrected, out_file, f"완료 — {Path(out_file).name}",
-            gr.update(value=render_html(corrected)), gr.update(value="교정"), gr.update(value=out_file),
+            gr.update(), gr.update(), gr.update(),
         )
     except Exception as exc:
         return "", "", f"교정 실패: {exc}", *_no
@@ -178,15 +178,13 @@ def handle_pipeline(
             output_dir=out_dir, summary_type=summary_type_val,
         )
         progress(1.0, desc="완료!")
-        display_text = corrected_text
-        display_view = "교정" if c_file else "원문"
         return (
             transcript, t_file,
             summary, s_file,
             f"완료 — {Path(t_file).name} / {Path(s_file).name}",
             "",
-            gr.update(value=render_html(display_text)), gr.update(value=c_file or t_file),
-            gr.update(value=display_view), corrected_text, c_file,
+            gr.update(value=render_html(transcript)), gr.update(value=t_file),
+            gr.update(value="원문"), corrected_text, c_file,
         )
     except Exception as exc:
         return "", "", "", "", f"실패: {exc}", "", *_disp_no
