@@ -24,6 +24,23 @@ def render_audio_map(audio_paths: dict) -> str:
     return f'<div id="wn-audio-map" style="display:none" {attrs}></div>'
 
 
+def _fmt_ts(secs: float) -> str:
+    """초를 HH:MM:SS.f 형식으로 변환. round() 로 부동소수점 오차 보정."""
+    total = max(0.0, secs)
+    tenths = int(round(total * 10)) % 10  # 0.1초 단위 반올림
+    total_s = int(total)
+    h = total_s // 3600
+    m = (total_s % 3600) // 60
+    s = total_s % 60
+    return f"{h:02d}:{m:02d}:{s:02d}.{tenths}"
+
+
+def _hms_to_sec(hms: str) -> float:
+    """HH:MM:SS 를 초로 변환."""
+    h, mi, s = hms.split(":")
+    return int(h) * 3600 + int(mi) * 60 + int(s)
+
+
 # 신형: [0.0s - 4.2s] [SPEAKER_00] 텍스트  (화자 선택적)
 _SEG_RE_NEW = re.compile(
     r"^\[(\d+\.?\d*)s\s*-\s*(\d+\.?\d*)s\]\s*(?:\[([^\]]+)\]\s*)?(.+)$"
@@ -33,13 +50,16 @@ _SEG_RE_OLD = re.compile(
     r"^\[([^\]]+)\]\s*\[(\d+\.?\d*)s\s*-\s*(\d+\.?\d*)s\]\s*(.+)$"
 )
 # 파트 마커: [파트 N - HH:MM:SS ~ HH:MM:SS]
-_PART_RE = re.compile(r"^\[파트\s+(\d+)\s*-\s*[\d:~\s]+\]$")
+_PART_RE = re.compile(
+    r"^\[파트\s+(\d+)\s*-\s*(\d{2}:\d{2}:\d{2})\s*~\s*(\d{2}:\d{2}:\d{2})\]$"
+)
 
 
 def _parse_lines(text: str) -> list[dict]:
     """전사 텍스트를 파싱해 세그먼트 + 파트 헤더 목록 반환."""
     result = []
     current_part = 0
+    current_part_offset = 0.0
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -47,29 +67,35 @@ def _parse_lines(text: str) -> list[dict]:
         m_part = _PART_RE.match(line)
         if m_part:
             current_part = int(m_part.group(1))
+            current_part_offset = _hms_to_sec(m_part.group(2))
             result.append({"_part_header": True, "part_n": current_part, "label": line})
             continue
         m = _SEG_RE_NEW.match(line)
         if m:
             result.append({
-                "start":   float(m.group(1)),
-                "end":     float(m.group(2)),
-                "speaker": m.group(3) or "",
-                "text":    m.group(4).strip(),
-                "part":    current_part,
+                "start":       float(m.group(1)),
+                "end":         float(m.group(2)),
+                "speaker":     m.group(3) or "",
+                "text":        m.group(4).strip(),
+                "part":        current_part,
+                "part_offset": current_part_offset,
             })
             continue
         m = _SEG_RE_OLD.match(line)
         if m:
             result.append({
-                "start":   float(m.group(2)),
-                "end":     float(m.group(3)),
-                "speaker": m.group(1).strip(),
-                "text":    m.group(4).strip(),
-                "part":    current_part,
+                "start":       float(m.group(2)),
+                "end":         float(m.group(3)),
+                "speaker":     m.group(1).strip(),
+                "text":        m.group(4).strip(),
+                "part":        current_part,
+                "part_offset": current_part_offset,
             })
             continue
-        result.append({"start": None, "end": None, "speaker": "", "text": line, "part": current_part})
+        result.append({
+            "start": None, "end": None, "speaker": "", "text": line,
+            "part": current_part, "part_offset": current_part_offset,
+        })
     return result
 
 
@@ -89,11 +115,11 @@ def render_html(text: str) -> str:
 
     segs = [s for s in items if not s.get("_part_header")]
     has_multi_part = any(s.get("_part_header") for s in items)
-    has_speaker = any(s["speaker"] for s in segs)
-    has_time    = any(s["start"] is not None for s in segs)
+    has_speaker    = any(s["speaker"] for s in segs)
+    has_time       = any(s["start"] is not None for s in segs)
 
-    # 컬럼 수 계산 (파트 헤더 colspan 용)
-    col_count = 1  # 내용 항상 있음
+    # 파트 헤더 colspan 계산
+    col_count = 1  # 내용 열 항상 있음
     if has_time or has_multi_part:
         col_count += 1
     if has_speaker:
@@ -127,9 +153,13 @@ def render_html(text: str) -> str:
         time_td = speaker_td = ""
         if has_time or has_multi_part:
             if timed:
+                offset  = item.get("part_offset", 0.0)
+                # 합본: 파트 오프셋 더해 누적 시간 표시 / 단일: 그대로
+                disp_s = _fmt_ts(offset + item["start"]) if has_multi_part else _fmt_ts(item["start"])
+                disp_e = _fmt_ts(offset + item["end"])   if has_multi_part else _fmt_ts(item["end"])
                 time_td = (
                     f'<td class="wn-tr-time">'
-                    f'{item["start"]:.1f}&#8202;&#8211;&#8202;{item["end"]:.1f}s'
+                    f'{disp_s}&#8202;&#8211;&#8202;{disp_e}'
                     f'</td>'
                 )
             else:
