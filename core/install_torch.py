@@ -3,6 +3,8 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime
+from pathlib import Path
 
 if sys.platform == "win32":
     try:
@@ -10,6 +12,31 @@ if sys.platform == "win32":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+_LOG_DIR = Path(__file__).parent.parent / "logs"
+_LOG_DIR.mkdir(exist_ok=True)
+_today = datetime.now().strftime("%Y-%m-%d")
+_INSTALL_LOG = _LOG_DIR / f"install_{_today}.log"
+
+
+def _ilog(msg: str):
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with _INSTALL_LOG.open("a", encoding="utf-8") as f:
+            f.write(f"[{ts}] {msg}\n")
+    except Exception:
+        pass
+
+
+def _ilog_installed():
+    """현재 설치된 PyTorch 정보를 install.log에 기록."""
+    ver, cuda_ver = _torch_info()
+    if cuda_ver:
+        avail = _cuda_ok()
+        _ilog(f"Result: PyTorch {ver} | CUDA {cuda_ver} | GPU available: {avail}")
+    else:
+        _ilog(f"Result: PyTorch {ver} | CPU-only build")
+
 
 _SCRIPTS = os.path.dirname(sys.executable)
 _PIP_EXE = os.path.join(_SCRIPTS, "pip.exe")
@@ -186,6 +213,8 @@ def _ask_cuda_manual():
 
 
 def main() -> int:
+    _ilog(f"=== PyTorch install start === Python {sys.version.split()[0]}")
+
     gpus = _detect_gpus()
     driver_cuda = _detect_driver_cuda_version()
     installed = _installed_type()
@@ -197,20 +226,26 @@ def main() -> int:
         print("  [GPU 감지됨]")
         for g in gpus:
             print(f"    - {g}")
+        _ilog(f"GPU detected: {', '.join(gpus)}")
         if driver_cuda:
             print(f"  [드라이버 지원 CUDA] {driver_cuda:.1f}")
+            _ilog(f"Driver CUDA: {driver_cuda:.1f}")
             build = _select_cuda_build(driver_cuda)
             if build:
                 cuda_tag, cuda_ver, cuda_url = build
                 print(f"  [권장 빌드] {cuda_tag}  (PyTorch CUDA {cuda_ver} 버전)")
+                _ilog(f"Recommended build: {cuda_tag} (CUDA {cuda_ver})")
             else:
                 print("  [경고] 드라이버가 CUDA 11.8 미만 - PyTorch GPU 미지원")
+                _ilog(f"WARNING: Driver CUDA {driver_cuda:.1f} < 11.8, GPU not supported")
                 cuda_tag = cuda_ver = cuda_url = None
         else:
+            _ilog("WARNING: CUDA version detection failed from nvidia-smi")
             cuda_tag = cuda_ver = cuda_url = None  # 감지 실패 → 수동 선택
         default_gpu = True
     else:
         print("  [NVIDIA GPU 없음 - CPU 버전 권장]")
+        _ilog("No NVIDIA GPU detected (nvidia-smi not found or no GPU)")
         driver_cuda = None
         cuda_tag = cuda_ver = cuda_url = None
         default_gpu = False
@@ -220,8 +255,10 @@ def main() -> int:
         _print_installed_info()
         cuda_ok_now = (installed == "cuda" and _cuda_ok())
         cpu_ok_now  = (installed == "cpu")
+        _ilog(f"Currently installed: {installed} (cuda_ok={cuda_ok_now})")
     else:
         print("  [현재 설치] PyTorch 없음")
+        _ilog("Currently installed: none")
         cuda_ok_now = cpu_ok_now = False
 
     # ── 선택 분기 ──────────────────────────────────────────────
@@ -282,11 +319,16 @@ def main() -> int:
                 print("  잘못된 입력입니다. 1 또는 2를 입력하세요.")
 
     want_type = "cuda" if want_gpu else "cpu"
+    if want_gpu and cuda_tag:
+        _ilog(f"User selected: GPU ({cuda_tag}, CUDA {cuda_ver})")
+    else:
+        _ilog(f"User selected: CPU")
 
     # 이미 올바른 버전이면 스킵
     if (want_gpu and cuda_ok_now) or (not want_gpu and cpu_ok_now):
         ver, _ = _torch_info()
         print(f"  PyTorch {ver} ({want_type}) 이미 설치됨. 건너뜁니다.")
+        _ilog(f"Already installed: PyTorch {ver} ({want_type}) - skipping")
         return 0
 
     # 기존 버전 제거
@@ -301,11 +343,13 @@ def main() -> int:
 
     if not ok:
         print("[ERROR] PyTorch 설치 실패.")
+        _ilog("ERROR: PyTorch installation failed")
         return 1
 
     # 설치 결과 출력
     print()
     _print_installed_info()
+    _ilog_installed()
 
     # GPU 요청했는데 CPU 빌드가 설치된 경우 → 고정 버전으로 재시도
     if want_gpu and _installed_type() == "cpu":
@@ -316,11 +360,14 @@ def main() -> int:
         if _install_pinned_cuda(cuda_tag, cuda_url):
             print()
             _print_installed_info()
+            _ilog_installed()
             if _installed_type() == "cpu":
                 print("  [오류] CUDA 빌드 설치 실패. CPU 버전으로 사용하거나 나중에 다시 시도하세요.")
+                _ilog("ERROR: CUDA build install failed even with pinned version")
                 return 1
         else:
             print("  [오류] CUDA 빌드 설치 실패. CPU 버전으로 사용하거나 나중에 다시 시도하세요.")
+            _ilog("ERROR: pinned CUDA build installation failed")
             return 1
 
     # CUDA 빌드는 됐는데 GPU 인식 실패
