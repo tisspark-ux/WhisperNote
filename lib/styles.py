@@ -164,6 +164,7 @@ body, .gradio-container {
 }
 
 /* ── 파이프라인 상태 ── */
+#pipeline-status { contain: layout; }
 #pipeline-status textarea {
     background: #0a0f1a !important;
     border: 1px solid #1e2130 !important;
@@ -171,7 +172,10 @@ body, .gradio-container {
     color: #6ee7b7 !important;
     font-size: 0.85rem !important;
     font-family: 'JetBrains Mono', monospace !important;
+    min-height: 2.6rem !important;
 }
+#queue-status { contain: layout; }
+#queue-status textarea { min-height: 4.5rem !important; }
 
 /* ── Upload 박스 ── */
 .wn-upload {
@@ -304,6 +308,12 @@ body, .gradio-container {
     border-radius: 10px;
     overflow: hidden;
     margin-top: 0.4rem;
+    animation: wnFadeIn 0.18s ease;
+    contain: layout;
+}
+@keyframes wnFadeIn {
+    from { opacity: 0.3; }
+    to   { opacity: 1;   }
 }
 .wn-tr-toolbar {
     display: flex;
