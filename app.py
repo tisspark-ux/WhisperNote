@@ -538,7 +538,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         )
                         btn_open_summary_folder = gr.Button("📂 폴더 열기", elem_classes="wn-btn-secondary", scale=1, min_width=90)
 
-        chunk_poll_timer = gr.Timer(value=2, active=False)
+        chunk_poll_timer = gr.Timer(value=3, active=False)
 
         # ════════════════════════════════════════════════════════
         # Tab 2 : 설정 가이드
