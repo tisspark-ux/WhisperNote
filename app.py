@@ -172,6 +172,23 @@ _TRANSCRIPT_JS = """() => {
     var audio = document.getElementById('wn-audio-player');
     if (!audio) return;
     var wasPlaying = !audio.paused;
+
+    function _doSeek() {
+      audio.currentTime = seconds;
+      if (wasPlaying) audio.play();
+    }
+
+    function _seekWhenReady() {
+      if (audio.readyState >= 1) {
+        _doSeek();
+      } else {
+        audio.addEventListener('loadedmetadata', function onMeta() {
+          audio.removeEventListener('loadedmetadata', onMeta);
+          _doSeek();
+        });
+      }
+    }
+
     if (partN) {
       var map = document.getElementById('wn-audio-map');
       if (map) {
@@ -182,8 +199,7 @@ _TRANSCRIPT_JS = """() => {
             audio.src = newSrc;
             audio.addEventListener('loadedmetadata', function onMeta() {
               audio.removeEventListener('loadedmetadata', onMeta);
-              audio.currentTime = seconds;
-              if (wasPlaying) audio.play();
+              _doSeek();
             });
             audio.load();
             return;
@@ -191,8 +207,7 @@ _TRANSCRIPT_JS = """() => {
         }
       }
     }
-    audio.currentTime = seconds;
-    if (wasPlaying) audio.play();
+    _seekWhenReady();
   }
 
   function wnTrUpdateCount(wrap) {
