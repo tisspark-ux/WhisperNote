@@ -50,9 +50,56 @@ def handle_upload_files(files, current_paths: list):
     return _render_file_list(merged), merged, f"전체 {len(merged)}개"
 
 
+def _sec_to_hms(secs: float) -> str:
+    """초를 HH:MM:SS 형식으로 변환."""
+    s = max(0, int(secs))
+    h, rem = divmod(s, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+
+def _audio_duration(audio_dir: Path, base: str, part_n: int) -> float:
+    """파트 오디오 파일에서 재생 시간(초)을 구한다. 실패 시 0.0 반환."""
+    exts = (".wav", ".mp3", ".m4a", ".flac", ".ogg", ".webm")
+    for ext in exts:
+        for fmt in (f"{base}_part{part_n:02d}{ext}", f"{base}_part{part_n}{ext}"):
+            af = audio_dir / fmt
+            if af.exists():
+                try:
+                    import soundfile as _sf
+                    return _sf.info(str(af)).duration
+                except Exception:
+                    return 0.0
+    return 0.0
+
+
+def _merge_parts_with_headers(parts: list[Path], audio_dir: Path, base: str) -> str:
+    """파트 전사 파일들을 [파트 N - HH:MM:SS ~ HH:MM:SS] 헤더와 함께 병합.
+
+    헤더가 있어야 render_html이 data-part 속성을 설정하고
+    JS의 파트 오디오 전환(wnSeekAudio)이 동작한다.
+    """
+    merged: list[str] = []
+    cumulative = 0.0
+    for pt in parts:
+        m = re.search(r"_part(\d+)_transcript", pt.name, re.IGNORECASE)
+        part_n = int(m.group(1)) if m else (len(merged) + 1)
+        duration = _audio_duration(audio_dir, base, part_n)
+        start_hms = _sec_to_hms(cumulative)
+        cumulative += duration
+        end_hms = _sec_to_hms(cumulative)
+        header = f"[파트 {part_n} - {start_hms} ~ {end_hms}]"
+        try:
+            body = pt.read_text(encoding="utf-8")
+        except Exception:
+            body = ""
+        merged.append(header + "\n" + body)
+    return "\n\n".join(merged)
+
+
 def _find_associated_files(wav_path: str) -> dict:
     """wav 파일 기준으로 연관 전사/교정/요약 파일 탐색.
-    통합본 우선, 없으면 파트별 병합.
+    통합본 우선, 없으면 파트별 병합 (파트 헤더 포함).
     반환: {"transcript": (text, path), "correction": (text, path), "summary": (text, path)}
     """
     p = Path(wav_path)
@@ -67,29 +114,25 @@ def _find_associated_files(wav_path: str) -> dict:
 
     result = {"transcript": ("", ""), "correction": ("", ""), "summary": ("", "")}
 
-    # 전사: 통합본 우선 → 없으면 파트별 병합
+    # 전사: 통합본 우선 → 없으면 파트별 병합 (파트 헤더 포함)
     combined_t = d / f"{base}_transcript.txt"
     if combined_t.exists():
         result["transcript"] = (_load(combined_t), str(combined_t))
     else:
         parts = sorted(d.glob(f"{base}_part*_transcript.txt"))
         if parts:
-            result["transcript"] = (
-                "\n\n".join(_load(pt) for pt in parts),
-                str(parts[0]),
-            )
+            merged = _merge_parts_with_headers(parts, d, base)
+            result["transcript"] = (merged, str(parts[0]))
 
-    # 교정: 통합본 우선 → 없으면 파트별 병합
+    # 교정: 통합본 우선 → 없으면 파트별 병합 (파트 헤더 포함)
     combined_c = d / f"{base}_transcript_corrected.txt"
     if combined_c.exists():
         result["correction"] = (_load(combined_c), str(combined_c))
     else:
         parts = sorted(d.glob(f"{base}_part*_transcript_corrected.txt"))
         if parts:
-            result["correction"] = (
-                "\n\n".join(_load(pt) for pt in parts),
-                str(parts[0]),
-            )
+            merged = _merge_parts_with_headers(parts, d, base)
+            result["correction"] = (merged, str(parts[0]))
 
     # 요약
     summary_f = d / f"{base}_summary.txt"
