@@ -36,12 +36,15 @@ class Summarizer:
     # 내부 Ollama 호출 헬퍼
     # ------------------------------------------------------------------
 
-    def _call_ollama(self, model: str, prompt: str) -> str:
+    def _call_ollama(self, model: str, prompt: str, num_ctx: int | None = None) -> str:
         """Ollama /api/generate 를 호출하고 응답 텍스트를 반환."""
         try:
+            payload: dict = {"model": model, "prompt": prompt, "stream": False}
+            if num_ctx is not None:
+                payload["options"] = {"num_ctx": num_ctx}
             resp = requests.post(
                 f"{self.base_url}/api/generate",
-                json={"model": model, "prompt": prompt, "stream": False},
+                json=payload,
                 timeout=OLLAMA_TIMEOUT,
             )
             resp.raise_for_status()
@@ -98,6 +101,48 @@ class Summarizer:
         return summary, str(output_file)
 
     # ------------------------------------------------------------------
+    # 교정 내부 헬퍼
+    # ------------------------------------------------------------------
+
+    # 한국어 기준 글자당 약 1.5 토큰 (보수적 추정)
+    _CHARS_PER_TOKEN = 1.5
+    # 직접 교정 가능한 최대 문자 수 (num_ctx=16384 기준, 출력 여유 고려)
+    _DIRECT_CORRECT_MAX_CHARS = 10_000
+    # 청크당 최대 문자 수
+    _CHUNK_MAX_CHARS = 6_000
+    # 직접 교정 시 num_ctx
+    _DIRECT_NUM_CTX = 16_384
+    # 청크 교정 시 num_ctx (청크가 작으므로 여유)
+    _CHUNK_NUM_CTX = 8_192
+
+    def _correct_in_chunks(self, model: str, transcript: str) -> str:
+        """전사문을 ~6000자 청크 단위로 나누어 교정 후 합친다."""
+        lines = transcript.splitlines(keepends=True)
+        chunks: list[str] = []
+        buf: list[str] = []
+        buf_chars = 0
+
+        for line in lines:
+            buf.append(line)
+            buf_chars += len(line)
+            if buf_chars >= self._CHUNK_MAX_CHARS:
+                chunks.append("".join(buf))
+                buf, buf_chars = [], 0
+
+        if buf:
+            chunks.append("".join(buf))
+
+        total = len(chunks)
+        corrected_parts: list[str] = []
+        for i, chunk in enumerate(chunks, 1):
+            print(f"[교정] 청크 {i}/{total} 교정 중...", flush=True)
+            prompt = get_correction_prompt().format(transcript=chunk.rstrip("\n"))
+            result = self._call_ollama(model, prompt, num_ctx=self._CHUNK_NUM_CTX)
+            corrected_parts.append(result)
+
+        return "\n".join(corrected_parts)
+
+    # ------------------------------------------------------------------
     # 전사 교정
     # ------------------------------------------------------------------
 
@@ -108,10 +153,29 @@ class Summarizer:
         model: str | None = None,
         output_dir=None,
     ) -> tuple[str, str]:
-        """Ollama 로 전사문을 교정한다. 구어체 다듬기, 추임새 제거 등."""
+        """Ollama 로 전사문을 교정한다. 구어체 다듬기, 추임새 제거 등.
+
+        전사문 길이에 따라 자동 전환:
+          - 10,000자 이하 → num_ctx=16384 로 직접 교정
+          - 초과         → 6,000자 청크 단위로 나누어 순차 교정
+        """
         model = model or self.model
-        prompt = get_correction_prompt().format(transcript=transcript)
-        corrected = self._call_ollama(model, prompt)
+
+        if len(transcript) <= self._DIRECT_CORRECT_MAX_CHARS:
+            print(
+                f"[교정] 직접 교정 (num_ctx={self._DIRECT_NUM_CTX}, "
+                f"{len(transcript)}자)...",
+                flush=True,
+            )
+            prompt = get_correction_prompt().format(transcript=transcript)
+            corrected = self._call_ollama(model, prompt, num_ctx=self._DIRECT_NUM_CTX)
+        else:
+            print(
+                f"[교정] 청크 교정 (num_ctx={self._CHUNK_NUM_CTX}, "
+                f"{len(transcript)}자, 청크~{self._CHUNK_MAX_CHARS}자)...",
+                flush=True,
+            )
+            corrected = self._correct_in_chunks(model, transcript)
 
         out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
