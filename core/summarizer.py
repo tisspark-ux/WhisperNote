@@ -132,6 +132,15 @@ class Summarizer:
     # 청크 교정 시 num_ctx
     _CHUNK_NUM_CTX = 16_384
 
+    _ECHO_ARTIFACTS = {"---", "전사문:", "교정:", "수정본:", "교정본:"}
+
+    def _strip_prompt_echo(self, text: str) -> str:
+        """LLM이 프롬프트 구분자를 응답 첫 줄에 에코할 때 제거."""
+        lines = text.splitlines()
+        while lines and lines[0].strip() in self._ECHO_ARTIFACTS:
+            lines.pop(0)
+        return "\n".join(lines)
+
     def _correct_in_chunks(self, model: str, transcript: str) -> str:
         """전사문을 ~6000자 청크 단위로 나누어 교정 후 합친다."""
         lines = transcript.splitlines(keepends=True)
@@ -154,7 +163,9 @@ class Summarizer:
         for i, chunk in enumerate(chunks, 1):
             print(f"[교정] 청크 {i}/{total} 교정 중...", flush=True)
             prompt = get_correction_prompt().format(transcript=chunk.rstrip("\n"))
-            result = self._call_ollama(model, prompt, num_ctx=self._CHUNK_NUM_CTX)
+            result = self._strip_prompt_echo(
+                self._call_ollama(model, prompt, num_ctx=self._CHUNK_NUM_CTX)
+            )
             corrected_parts.append(result)
 
         return "\n".join(corrected_parts)
@@ -185,7 +196,9 @@ class Summarizer:
                 flush=True,
             )
             prompt = get_correction_prompt().format(transcript=transcript)
-            corrected = self._call_ollama(model, prompt, num_ctx=self._DIRECT_NUM_CTX)
+            corrected = self._strip_prompt_echo(
+                self._call_ollama(model, prompt, num_ctx=self._DIRECT_NUM_CTX)
+            )
         else:
             print(
                 f"[교정] 청크 교정 (num_ctx={self._CHUNK_NUM_CTX}, "
