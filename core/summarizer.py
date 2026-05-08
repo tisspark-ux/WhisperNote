@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 import requests
@@ -141,34 +142,80 @@ class Summarizer:
             lines.pop(0)
         return "\n".join(lines)
 
+    # 파트 헤더 패턴 — LLM에 전달하지 않고 항상 원본 그대로 보존
+    _PART_HEADER_RE = re.compile(
+        r"^\[파트\s+\d+\s*-\s*\d{2}:\d{2}:\d{2}\s*~\s*\d{2}:\d{2}:\d{2}\]$"
+    )
+
     def _correct_in_chunks(self, model: str, transcript: str) -> str:
-        """전사문을 ~6000자 청크 단위로 나누어 교정 후 합친다."""
+        """파트 헤더를 보존하면서 내용만 청크 단위로 교정한다.
+
+        [파트 N - HH:MM:SS ~ HH:MM:SS] 줄은 LLM에 전달하지 않고 항상 원본 그대로 유지.
+        나머지 내용만 _CHUNK_MAX_CHARS 단위로 분할해 순차 교정.
+        """
         lines = transcript.splitlines(keepends=True)
-        chunks: list[str] = []
-        buf: list[str] = []
-        buf_chars = 0
 
+        # 파트 헤더 기준으로 섹션 분리
+        sections: list[tuple[str | None, list[str]]] = []
+        cur_header: str | None = None
+        cur_lines: list[str] = []
         for line in lines:
-            buf.append(line)
-            buf_chars += len(line)
-            if buf_chars >= self._CHUNK_MAX_CHARS:
+            if self._PART_HEADER_RE.match(line.strip()):
+                sections.append((cur_header, cur_lines))
+                cur_header = line.rstrip("\n")
+                cur_lines = []
+            else:
+                cur_lines.append(line)
+        sections.append((cur_header, cur_lines))
+
+        # 전체 청크 수 계산 (진행률 표시용)
+        def _chunk_count(content_lines: list[str]) -> int:
+            total_chars = sum(len(l) for l in content_lines)
+            return max(1, -(-total_chars // self._CHUNK_MAX_CHARS))
+
+        total_chunks = sum(
+            _chunk_count(cl) for _, cl in sections if "".join(cl).strip()
+        )
+        chunk_idx = 0
+        corrected_sections: list[str] = []
+
+        for header, section_lines in sections:
+            content = "".join(section_lines)
+            if not content.strip():
+                if header:
+                    corrected_sections.append(header)
+                continue
+
+            # 섹션 내 청크 분할
+            chunks: list[str] = []
+            buf: list[str] = []
+            buf_chars = 0
+            for line in section_lines:
+                buf.append(line)
+                buf_chars += len(line)
+                if buf_chars >= self._CHUNK_MAX_CHARS:
+                    chunks.append("".join(buf))
+                    buf, buf_chars = [], 0
+            if buf:
                 chunks.append("".join(buf))
-                buf, buf_chars = [], 0
 
-        if buf:
-            chunks.append("".join(buf))
+            corrected_chunk_parts: list[str] = []
+            for chunk in chunks:
+                chunk_idx += 1
+                print(f"[교정] 청크 {chunk_idx}/{total_chunks} 교정 중...", flush=True)
+                prompt = get_correction_prompt().format(transcript=chunk.rstrip("\n"))
+                corrected = self._strip_prompt_echo(
+                    self._call_ollama(model, prompt, num_ctx=self._CHUNK_NUM_CTX)
+                )
+                corrected_chunk_parts.append(corrected)
 
-        total = len(chunks)
-        corrected_parts: list[str] = []
-        for i, chunk in enumerate(chunks, 1):
-            print(f"[교정] 청크 {i}/{total} 교정 중...", flush=True)
-            prompt = get_correction_prompt().format(transcript=chunk.rstrip("\n"))
-            result = self._strip_prompt_echo(
-                self._call_ollama(model, prompt, num_ctx=self._CHUNK_NUM_CTX)
-            )
-            corrected_parts.append(result)
+            section_text = "\n".join(corrected_chunk_parts)
+            if header:
+                corrected_sections.append(header + "\n" + section_text)
+            else:
+                corrected_sections.append(section_text)
 
-        return "\n".join(corrected_parts)
+        return "\n\n".join(corrected_sections)
 
     # ------------------------------------------------------------------
     # 전사 교정
