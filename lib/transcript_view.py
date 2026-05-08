@@ -56,10 +56,17 @@ _PART_RE = re.compile(
 
 
 def _parse_lines(text: str) -> list[dict]:
-    """전사 텍스트를 파싱해 세그먼트 + 파트 헤더 목록 반환."""
+    """전사 텍스트를 파싱해 세그먼트 + 파트 헤더 목록 반환.
+
+    파트 헤더([파트 N - HH:MM:SS ~ HH:MM:SS])가 없어도
+    타임스탬프가 크게 뒤로 리셋될 때(이전 end > 60s, 현재 start < 30s) 파트 경계로 자동 감지한다.
+    교정 중 LLM이 파트 헤더를 제거한 파일도 올바르게 처리된다.
+    """
     result = []
     current_part = 0
     current_part_offset = 0.0
+    prev_end = -1.0  # 직전 세그먼트 end_sec (묵시적 경계 감지용)
+
     for line in text.splitlines():
         line = line.strip()
         if not line:
@@ -68,35 +75,73 @@ def _parse_lines(text: str) -> list[dict]:
         if m_part:
             current_part = int(m_part.group(1))
             current_part_offset = _hms_to_sec(m_part.group(2))
+            prev_end = -1.0
             result.append({"_part_header": True, "part_n": current_part, "label": line})
             continue
         m = _SEG_RE_NEW.match(line)
         if m:
+            start = float(m.group(1))
+            end   = float(m.group(2))
+            if _is_implicit_part_boundary(current_part, prev_end, start):
+                current_part += 1
+                current_part_offset += prev_end
+                prev_end = -1.0
+                result.append({
+                    "_part_header": True, "_implicit": True,
+                    "part_n": current_part,
+                    "label": f"[파트 {current_part}]",
+                })
             result.append({
-                "start":       float(m.group(1)),
-                "end":         float(m.group(2)),
+                "start": start, "end": end,
                 "speaker":     m.group(3) or "",
                 "text":        m.group(4).strip(),
                 "part":        current_part,
                 "part_offset": current_part_offset,
             })
+            prev_end = end
             continue
         m = _SEG_RE_OLD.match(line)
         if m:
+            start = float(m.group(2))
+            end   = float(m.group(3))
+            if _is_implicit_part_boundary(current_part, prev_end, start):
+                current_part += 1
+                current_part_offset += prev_end
+                prev_end = -1.0
+                result.append({
+                    "_part_header": True, "_implicit": True,
+                    "part_n": current_part,
+                    "label": f"[파트 {current_part}]",
+                })
             result.append({
-                "start":       float(m.group(2)),
-                "end":         float(m.group(3)),
+                "start": start, "end": end,
                 "speaker":     m.group(1).strip(),
                 "text":        m.group(4).strip(),
                 "part":        current_part,
                 "part_offset": current_part_offset,
             })
+            prev_end = end
             continue
         result.append({
             "start": None, "end": None, "speaker": "", "text": line,
             "part": current_part, "part_offset": current_part_offset,
         })
     return result
+
+
+def _is_implicit_part_boundary(current_part: int, prev_end: float, cur_start: float) -> bool:
+    """파트 헤더 없이 타임스탬프 리셋만으로 파트 경계 판단.
+
+    조건: 현재 파트가 1 이상이고, 직전 end가 60초를 넘었는데
+    새 세그먼트가 30초 미만으로 시작하면 새 파트로 판단한다.
+    단일 파일(파트 없음)에는 current_part=0 이므로 절대 발동하지 않는다.
+    """
+    return (
+        current_part > 0
+        and prev_end > 60.0
+        and cur_start < 30.0
+        and (prev_end - cur_start) > 60.0
+    )
 
 
 def parse_segments(text: str) -> list[dict]:
