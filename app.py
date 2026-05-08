@@ -168,9 +168,26 @@ _FILE_LIST_JS = """() => {
 }"""
 
 _TRANSCRIPT_JS = """() => {
+  // 현재 재생 중인 파트 번호 (0 = 미설정 / 단일 파일)
+  var _wnActivePart = 0;
+
+  // Gradio가 audio_preview 를 갱신하면 기존 <audio> 엘리먼트가 교체된다.
+  // 교체를 감지해 파트 번호 추적 변수를 초기화한다.
+  new MutationObserver(function(ms) {
+    for (var m of ms) {
+      for (var n of m.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.id === 'wn-audio-player' ||
+            (n.querySelector && n.querySelector('#wn-audio-player'))) {
+          _wnActivePart = 0;
+        }
+      }
+    }
+  }).observe(document.body, {childList: true, subtree: true});
+
   function wnSeekAudio(seconds, partN) {
     var audio = document.getElementById('wn-audio-player');
-    if (!audio) return;
+    if (!audio) { console.warn('[WN] #wn-audio-player 없음'); return; }
     var wasPlaying = !audio.paused;
 
     function _doSeek() {
@@ -191,11 +208,34 @@ _TRANSCRIPT_JS = """() => {
 
     if (partN) {
       var map = document.getElementById('wn-audio-map');
-      if (map) {
+      if (!map) {
+        console.warn('[WN] #wn-audio-map 없음 - 현재 파일에서 탐색');
+      } else {
         var newSrc = map.getAttribute('data-part-' + partN);
-        if (newSrc) {
-          var curSrc = audio.getAttribute('src') || '';
-          if (curSrc !== newSrc) {
+        if (!newSrc) {
+          console.warn('[WN] data-part-' + partN + ' 속성 없음 - 현재 파일에서 탐색');
+        } else {
+          // 초기 상태(_wnActivePart=0)에는 URL 비교로 현재 파트 판별
+          var needSwitch;
+          if (_wnActivePart > 0) {
+            needSwitch = _wnActivePart !== partN;
+          } else {
+            // currentSrc(절대URL) 또는 getAttribute('src')를 절대URL로 변환해 비교
+            var curAbs = audio.currentSrc || '';
+            if (!curAbs) {
+              var attr = audio.getAttribute('src');
+              try { if (attr) curAbs = new URL(attr, location.href).href; } catch(e) {}
+            }
+            try {
+              needSwitch = !!curAbs && curAbs !== new URL(newSrc, location.href).href;
+            } catch(e) {
+              needSwitch = true;
+            }
+          }
+          console.log('[WN] partN=' + partN + ' activePart=' + _wnActivePart +
+                      ' needSwitch=' + needSwitch + ' t=' + seconds);
+          if (needSwitch) {
+            _wnActivePart = partN;
             audio.src = newSrc;
             audio.addEventListener('loadedmetadata', function onMeta() {
               audio.removeEventListener('loadedmetadata', onMeta);
@@ -204,6 +244,7 @@ _TRANSCRIPT_JS = """() => {
             audio.load();
             return;
           }
+          _wnActivePart = partN;  // 초기 파트 번호 확정
         }
       }
     }
