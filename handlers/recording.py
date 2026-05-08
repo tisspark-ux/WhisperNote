@@ -9,16 +9,25 @@ from lib.transcript_view import render_html, audio_html, render_audio_map
 from handlers.category import _out_dir
 
 
+_AUDIO_MAP_EMPTY = '<div id="wn-audio-map" style="display:none"></div>'
+
+
 def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
                             chunk_minutes, model_name, summary_type_val,
                             num_speakers_val="자동"):
     def _fail(msg):
+        # 버튼 상태 6개 + 화면 클리어 없음(no-op) 9개
         return (
             gr.update(interactive=True),
             gr.update(interactive=False),
             gr.update(interactive=False, value="⏸ 일시정지"),
             gr.update(interactive=True, value="마이크 테스트"),
             msg, "",
+            gr.update(), gr.update(),
+            gr.update(), gr.update(),
+            gr.update(), gr.update(),
+            gr.update(), gr.update(), gr.update(),
+            gr.update(),
         )
 
     out_dir   = _out_dir(cat_data_val, l1_id, l2_id, l3_id)
@@ -76,21 +85,20 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
             summary_type=summary_type_val,
             num_speakers=ns,
         )
+        # 버튼 상태 6개 + 전사·교정·요약·뷰·오디오맵 초기화 9개
         return (
             gr.update(interactive=False),
             gr.update(interactive=True),
             gr.update(interactive=True, value="⏸ 일시정지"),
             gr.update(interactive=False, value="마이크 테스트"),
-            msg,
-            file_path,
+            msg, file_path,
+            "", "",
+            "", "",
+            "", "",
+            "", "원문", "",
+            _AUDIO_MAP_EMPTY,
         )
-    return (
-        gr.update(interactive=True),
-        gr.update(interactive=False),
-        gr.update(interactive=False, value="⏸ 일시정지"),
-        gr.update(interactive=True, value="마이크 테스트"),
-        msg, "",
-    )
+    return _fail(msg)
 
 
 def handle_stop_recording():

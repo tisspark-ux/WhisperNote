@@ -727,7 +727,14 @@ python app.py
         handle_start_recording,
         inputs=[input_device, cat_data, cat_l1, cat_l2, cat_l3, chunk_minutes_input,
                 ollama_model, summary_type, num_speakers_dd],
-        outputs=[btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file],
+        outputs=[
+            btn_start, btn_stop, btn_pause, btn_test, record_status, recorded_file,
+            transcript_output, transcript_file_path,
+            correction_output, corrected_file_path,
+            summary_output, summary_file_path,
+            text_display, view_radio, display_file_path,
+            audio_map_display,
+        ],
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
         handle_stop_recording,
@@ -752,6 +759,7 @@ python app.py
         handle_chunk_poll,
         inputs=[view_radio],
         outputs=_poll_outputs,
+        show_progress="hidden",
     )
     btn_test.click(handle_mic_test, inputs=[input_device], outputs=[btn_test, record_status])
     btn_refresh.click(refresh_ollama_models, outputs=[ollama_model, model_status])
