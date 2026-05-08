@@ -71,6 +71,21 @@ class Summarizer:
     # 요약
     # ------------------------------------------------------------------
 
+    # 한국어 기준 글자당 약 1.5 토큰 (보수적 추정)
+    _CHARS_PER_TOKEN = 1.5
+    # 요약 출력 예비 토큰 (면담 요약은 내용이 길 수 있음)
+    _SUMMARY_OUTPUT_RESERVE = 12_288
+    # 요약 num_ctx 상한 (A4000 16GB VRAM 안전 범위)
+    _SUMMARY_MAX_CTX = 131_072
+
+    def _calc_num_ctx(self, text_chars: int) -> int:
+        """전사문 길이로 num_ctx를 동적 산출 (2의 거듭제곱으로 올림)."""
+        estimated = int(text_chars / self._CHARS_PER_TOKEN) + self._SUMMARY_OUTPUT_RESERVE
+        ctx = 16_384
+        while ctx < estimated:
+            ctx <<= 1
+        return min(ctx, self._SUMMARY_MAX_CTX)
+
     def summarize(
         self,
         transcript: str,
@@ -87,8 +102,13 @@ class Summarizer:
         output_file : str
         """
         model = model or self.model
+        num_ctx = self._calc_num_ctx(len(transcript))
+        print(
+            f"[요약] num_ctx={num_ctx}, {len(transcript)}자, 유형={summary_type}...",
+            flush=True,
+        )
         prompt = get_summary_prompt(summary_type).format(transcript=transcript)
-        summary = self._call_ollama(model, prompt)
+        summary = self._call_ollama(model, prompt, num_ctx=num_ctx)
 
         out_dir = output_dir if output_dir is not None else OUTPUTS_DIR
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -103,17 +123,14 @@ class Summarizer:
     # ------------------------------------------------------------------
     # 교정 내부 헬퍼
     # ------------------------------------------------------------------
-
-    # 한국어 기준 글자당 약 1.5 토큰 (보수적 추정)
-    _CHARS_PER_TOKEN = 1.5
-    # 직접 교정 가능한 최대 문자 수 (num_ctx=16384 기준, 출력 여유 고려)
-    _DIRECT_CORRECT_MAX_CHARS = 10_000
+    # 직접 교정 가능한 최대 문자 수 (A4000 16GB, num_ctx=32768 기준)
+    _DIRECT_CORRECT_MAX_CHARS = 20_000
     # 청크당 최대 문자 수
-    _CHUNK_MAX_CHARS = 6_000
+    _CHUNK_MAX_CHARS = 10_000
     # 직접 교정 시 num_ctx
-    _DIRECT_NUM_CTX = 16_384
-    # 청크 교정 시 num_ctx (청크가 작으므로 여유)
-    _CHUNK_NUM_CTX = 8_192
+    _DIRECT_NUM_CTX = 32_768
+    # 청크 교정 시 num_ctx
+    _CHUNK_NUM_CTX = 16_384
 
     def _correct_in_chunks(self, model: str, transcript: str) -> str:
         """전사문을 ~6000자 청크 단위로 나누어 교정 후 합친다."""
