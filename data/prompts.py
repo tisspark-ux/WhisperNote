@@ -146,20 +146,36 @@ else:
         _cf.write_text(_updated, encoding="utf-8")
 
 
+def _inject_vocab_context(prompt: str) -> str:
+    """프롬프트의 '---\\n전사문:' 구분자 바로 앞에 vocab 컨텍스트를 삽입한다.
+
+    hotwords/corrections 가 모두 비어있으면 원본 그대로 반환.
+    """
+    from data.vocab import build_llm_context
+    ctx = build_llm_context()
+    if not ctx:
+        return prompt
+    marker = "---\n전사문:"
+    if marker in prompt:
+        return prompt.replace(marker, ctx + "\n\n" + marker, 1)
+    return prompt + "\n\n" + ctx
+
+
 def get_summary_prompt(summary_type: str) -> str:
-    """요약 프롬프트 파일 로드. 파일 없으면 기본값 반환."""
+    """요약 프롬프트 파일 로드 + vocab 컨텍스트 삽입."""
     path = SUMMARY_DIR / f"{summary_type}.txt"
     if path.exists():
-        return path.read_text(encoding="utf-8")
-    return _SUMMARY_DEFAULTS.get(summary_type, next(iter(_SUMMARY_DEFAULTS.values())))
+        base = path.read_text(encoding="utf-8")
+    else:
+        base = _SUMMARY_DEFAULTS.get(summary_type, next(iter(_SUMMARY_DEFAULTS.values())))
+    return _inject_vocab_context(base)
 
 
 def get_correction_prompt() -> str:
-    """교정 프롬프트 파일 로드. 파일 없으면 기본값 반환."""
+    """교정 프롬프트 파일 로드 + vocab 컨텍스트 삽입."""
     path = CORRECTION_DIR / "교정.txt"
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return _CORRECTION_DEFAULT
+    base = path.read_text(encoding="utf-8") if path.exists() else _CORRECTION_DEFAULT
+    return _inject_vocab_context(base)
 
 
 def list_summary_types() -> list[str]:

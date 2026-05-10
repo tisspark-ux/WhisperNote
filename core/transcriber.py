@@ -20,6 +20,7 @@ from config import (
     WHISPER_MODEL,
     WHISPER_VAD_FILTER,
 )
+from data.vocab import build_whisper_prompt, apply_corrections as _apply_vocab_corrections
 from lib.logger import get_logger
 
 _logger = get_logger("transcriber")
@@ -229,7 +230,7 @@ class Transcriber:
             language=WHISPER_LANGUAGE,
             beam_size=WHISPER_BEAM_SIZE,
             vad_filter=WHISPER_VAD_FILTER,
-            initial_prompt=WHISPER_INITIAL_PROMPT,
+            initial_prompt=build_whisper_prompt(WHISPER_INITIAL_PROMPT),
             temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
             condition_on_previous_text=False,
             no_speech_threshold=0.5,
@@ -278,6 +279,10 @@ class Transcriber:
             print("[전사] 타임스탬프 정렬 완료", flush=True)
         except Exception as exc:
             print(f"[전사] 타임스탬프 정렬 생략 (오류: {exc})", flush=True)
+
+        # 용어 교정 사전 적용 (alignment 후, 환각 필터 전)
+        for _s in segments:
+            _s["text"] = _apply_vocab_corrections(_s.get("text", ""))
 
         # 환각 세그먼트 필터 (비한국어 스크립트 감지)
         before = len(segments)

@@ -1,4 +1,4 @@
-__version__ = "1.0.95"
+__version__ = "1.1.0"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,21 @@ __version__ = "1.0.95"
 # =============================================================================
 
 CHANGELOG = """
+v1.1.0 (2026-05-10)
+  - [기능] 전문 용어 사전 기능 추가
+    파일:
+      prompts/vocab/hotwords.txt   — 자주 쓰는 용어 목록 (없으면 자동 생성)
+      prompts/vocab/corrections.txt — STT 오인식 교정 규칙 (없으면 자동 생성)
+    WhisperX 전사:
+      - build_whisper_prompt(): hotwords를 initial_prompt에 자동 삽입 (220자 제한)
+      - apply_corrections(): 전사 완료 후 corrections.txt 규칙을 세그먼트에 즉시 적용
+    Ollama 교정/요약:
+      - _inject_vocab_context(): corrections + hotwords 컨텍스트를 프롬프트에 동적 삽입
+      - LLM이 오인식 교정 규칙과 주요 용어를 참고해 더 정확한 교정/요약 생성
+    UI:
+      - 파일 목록 위에 전문 용어 1줄 입력 + 저장 버튼 추가
+      - hotwords.txt와 자동 동기화 (앱 시작 시 로드, 저장 버튼으로 갱신)
+
 v1.0.95 (2026-05-08)
   - [수정] 녹음 중 화면 깜빡임 제거
     ▸ 원인: chunk_poll_timer.tick 이 3초마다 실행되면서 출력 컴포넌트 전체에
