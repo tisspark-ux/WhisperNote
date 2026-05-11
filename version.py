@@ -99,11 +99,11 @@ CHANGELOG = """
 v1.1.1 (2026-05-11)
   - [수정] 녹음 중 화면 깜빡임: CSS .generating { opacity:1 } 로 Gradio loading overlay 억제
     ▸ show_progress="hidden"은 상단 progress bar만 제어; 컴포넌트 overlay는 CSS로 해결
-  - [수정] 파트 WAV 전환 안 되는 버그
-    ▸ 원인: audio src가 비어있을 때 needSwitch = !!curAbs && ... 가 false 반환
-            (녹음 중 audio_preview에 src 없을 때, 클릭해도 파트 파일 전환 건너뜀)
-    ▸ 수정: !curAbs || curAbs !== ... 로 변경
-            (src 없으면 무조건 전환; src 있으면 URL 달라야 전환)
+  - [수정] 파트 WAV 전환 안 되는 버그 (녹음 중 / 파일 선택 모두)
+    ▸ 원인: URL 비교(_wnActivePart=0 초기 상태)가 불안정함
+            audio.currentSrc 미로딩, 경로 인코딩 차이, src 없는 경우 등 엣지케이스 다수
+    ▸ 수정: URL 비교 완전 제거 → _wnActivePart 번호만으로 전환 결정
+            (_wnActivePart != partN 이면 항상 전환; 0=초기/리셋 상태도 항상 전환)
 
 v1.1.0 (2026-05-10)
   - [기능] 전문 용어 사전 기능 추가

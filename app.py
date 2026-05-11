@@ -207,49 +207,32 @@ _TRANSCRIPT_JS = """() => {
       }
     }
 
-    if (partN) {
-      var map = document.getElementById('wn-audio-map');
-      if (!map) {
-        console.warn('[WN] #wn-audio-map 없음 - 현재 파일에서 탐색');
-      } else {
-        var newSrc = map.getAttribute('data-part-' + partN);
-        if (!newSrc) {
-          console.warn('[WN] data-part-' + partN + ' 속성 없음 - 현재 파일에서 탐색');
-        } else {
-          // 초기 상태(_wnActivePart=0)에는 URL 비교로 현재 파트 판별
-          var needSwitch;
-          if (_wnActivePart > 0) {
-            needSwitch = _wnActivePart !== partN;
-          } else {
-            // currentSrc(절대URL) 또는 getAttribute('src')를 절대URL로 변환해 비교
-            var curAbs = audio.currentSrc || '';
-            if (!curAbs) {
-              var attr = audio.getAttribute('src');
-              try { if (attr) curAbs = new URL(attr, location.href).href; } catch(e) {}
-            }
-            try {
-              // curAbs 없으면(audio src 없음) 무조건 전환
-              needSwitch = !curAbs || curAbs !== new URL(newSrc, location.href).href;
-            } catch(e) {
-              needSwitch = true;
-            }
-          }
-          console.log('[WN] partN=' + partN + ' activePart=' + _wnActivePart +
-                      ' needSwitch=' + needSwitch + ' t=' + seconds);
-          if (needSwitch) {
-            _wnActivePart = partN;
-            audio.src = newSrc;
-            audio.addEventListener('loadedmetadata', function onMeta() {
-              audio.removeEventListener('loadedmetadata', onMeta);
-              _doSeek();
-            });
-            audio.load();
-            return;
-          }
-          _wnActivePart = partN;  // 초기 파트 번호 확정
-        }
-      }
+    if (!partN) {
+      // 파트 없는 단일 파일: 바로 탐색
+      _seekWhenReady();
+      return;
     }
+
+    var map = document.getElementById('wn-audio-map');
+    if (!map) { console.warn('[WN] #wn-audio-map 없음'); _seekWhenReady(); return; }
+    var newSrc = map.getAttribute('data-part-' + partN);
+    if (!newSrc) { console.warn('[WN] data-part-' + partN + ' 없음'); _seekWhenReady(); return; }
+
+    // _wnActivePart 가 다를 때만 소스 전환 (0 = 초기/리셋 → 항상 전환)
+    if (_wnActivePart !== partN) {
+      console.log('[WN] 파트 전환: ' + _wnActivePart + ' → ' + partN + '  t=' + seconds);
+      _wnActivePart = partN;
+      audio.src = newSrc;
+      audio.addEventListener('loadedmetadata', function onMeta() {
+        audio.removeEventListener('loadedmetadata', onMeta);
+        _doSeek();
+      });
+      audio.load();
+      return;
+    }
+
+    // 같은 파트: 소스 유지, 바로 탐색
+    console.log('[WN] 같은 파트 ' + partN + ' 탐색  t=' + seconds);
     _seekWhenReady();
   }
 
