@@ -50,6 +50,9 @@ body, .gradio-container {
     margin-bottom: 0.6rem;
 }
 
+/* 전문 용어 행: 버튼을 입력칸 높이에 맞춰 하단 정렬 */
+.wn-hotwords-row { align-items: flex-end !important; }
+
 /* ── 상태 뱃지 ── */
 #record-status textarea {
     background: #0d1117 !important;
