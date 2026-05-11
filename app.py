@@ -201,7 +201,7 @@ _TRANSCRIPT_JS = """() => {
     var wasPlaying = !audio.paused;
 
     function _doSeek() {
-      audio.currentTime = seconds;
+      audio.currentTime = Math.max(0, seconds - 0.5);
       if (wasPlaying) audio.play();
     }
 
