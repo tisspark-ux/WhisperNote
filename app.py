@@ -447,7 +447,7 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         elem_id="wn-hotwords-input",
                     )
                     btn_save_hotwords = gr.Button(
-                        "저장", scale=0, min_width=50,
+                        "저장", scale=0, min_width=70,
                         elem_classes="wn-btn-secondary",
                         elem_id="btn-save-hotwords",
                     )
