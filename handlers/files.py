@@ -221,6 +221,10 @@ def on_file_select(selected_json: str, file_paths_val: list):
 
         part_map = _build_part_audio_map(audio_val)
 
+    now_playing = (
+        f'<div id="wn-now-playing">{Path(audio_val).name}</div>'
+        if audio_val else '<div id="wn-now-playing"></div>'
+    )
     return (
         audio_html(audio_val or ""), count_html, audio_val or "",
         t_text, t_path,
@@ -228,6 +232,7 @@ def on_file_select(selected_json: str, file_paths_val: list):
         s_text, s_path,
         render_html(display_text), view_val, display_path,
         render_audio_map(part_map),
+        now_playing,
     )
 
 

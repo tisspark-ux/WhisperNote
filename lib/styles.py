@@ -306,6 +306,20 @@ body, .gradio-container {
 #wn-audio-preview { margin-bottom: 0 !important; padding-bottom: 0 !important; }
 #wn-audio-preview > div { margin-bottom: 0 !important; padding-bottom: 0 !important; }
 
+/* ── 현재 재생 파일명 표시 ── */
+#wn-now-playing-wrap { margin-top: 0 !important; padding-top: 0 !important; }
+#wn-now-playing-wrap > div { margin-top: 0 !important; padding-top: 0 !important; }
+#wn-now-playing {
+    font-size: 0.73rem;
+    color: #6b7280;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 2px 4px;
+    min-height: 1em;
+}
+
 /* ── 전사/교정 인터랙티브 테이블 ── */
 .wn-tr-wrap {
     background: #0d1117;

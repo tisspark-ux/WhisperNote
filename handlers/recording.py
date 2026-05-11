@@ -16,7 +16,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
                             chunk_minutes, model_name, summary_type_val,
                             num_speakers_val="자동"):
     def _fail(msg):
-        # 버튼 상태 6개 + 화면 클리어 없음(no-op) 9개
+        # 버튼 상태 6개 + 화면 클리어 없음(no-op) 9개 + audio_now_playing no-op 1개
         return (
             gr.update(interactive=True),
             gr.update(interactive=False),
@@ -27,6 +27,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
             gr.update(), gr.update(),
             gr.update(), gr.update(),
             gr.update(), gr.update(), gr.update(),
+            gr.update(),
             gr.update(),
         )
 
@@ -85,7 +86,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
             summary_type=summary_type_val,
             num_speakers=ns,
         )
-        # 버튼 상태 6개 + 전사·교정·요약·뷰·오디오맵 초기화 9개
+        # 버튼 상태 6개 + 전사·교정·요약·뷰·오디오맵·now-playing 초기화
         return (
             gr.update(interactive=False),
             gr.update(interactive=True),
@@ -97,6 +98,7 @@ def handle_start_recording(device_idx, cat_data_val, l1_id, l2_id, l3_id,
             "", "",
             "", "원문", "",
             _AUDIO_MAP_EMPTY,
+            '<div id="wn-now-playing"></div>',
         )
     return _fail(msg)
 

@@ -186,6 +186,15 @@ _TRANSCRIPT_JS = """() => {
     }
   }).observe(document.body, {childList: true, subtree: true});
 
+  function _wnSetNowPlaying(src) {
+    var el = document.getElementById('wn-now-playing');
+    if (!el) return;
+    if (!src) { el.textContent = ''; return; }
+    var name = src.split('/').pop().split('?')[0];
+    try { name = decodeURIComponent(name); } catch(e) {}
+    el.textContent = name;
+  }
+
   function wnSeekAudio(seconds, partN) {
     var audio = document.getElementById('wn-audio-player');
     if (!audio) { console.warn('[WN] #wn-audio-player 없음'); return; }
@@ -223,6 +232,7 @@ _TRANSCRIPT_JS = """() => {
       console.log('[WN] 파트 전환: ' + _wnActivePart + ' → ' + partN + '  t=' + seconds);
       _wnActivePart = partN;
       audio.src = newSrc;
+      _wnSetNowPlaying(newSrc);
       audio.addEventListener('loadedmetadata', function onMeta() {
         audio.removeEventListener('loadedmetadata', onMeta);
         _doSeek();
@@ -506,6 +516,10 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         label="재생",
                         elem_id="wn-audio-preview",
                     )
+                    audio_now_playing = gr.HTML(
+                        value='<div id="wn-now-playing"></div>',
+                        elem_id="wn-now-playing-wrap",
+                    )
                     audio_map_display = gr.HTML(
                         value='<div id="wn-audio-map" style="display:none"></div>',
                         visible=True,
@@ -735,6 +749,7 @@ python app.py
             summary_output, summary_file_path,
             text_display, view_radio, display_file_path,
             audio_map_display,
+            audio_now_playing,
         ],
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
@@ -804,6 +819,7 @@ python app.py
             summary_output, summary_file_path,
             text_display, view_radio, display_file_path,
             audio_map_display,
+            audio_now_playing,
         ],
     )
 
