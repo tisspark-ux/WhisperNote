@@ -437,6 +437,21 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         scale=2,
                     )
                     btn_refresh = gr.Button("↻", elem_classes="wn-btn-secondary", scale=0, min_width=34)
+                with gr.Row(elem_classes="wn-hotwords-row"):
+                    hotwords_input = gr.Textbox(
+                        value=load_hotwords_as_csv(),
+                        label="전문 용어",
+                        placeholder="예: 현대모비스, ADAS, ECU, OTA",
+                        lines=1,
+                        scale=1,
+                        elem_id="wn-hotwords-input",
+                    )
+                    btn_save_hotwords = gr.Button(
+                        "저장", scale=0, min_width=50,
+                        elem_classes="wn-btn-secondary",
+                        elem_id="btn-save-hotwords",
+                    )
+                hotwords_status = gr.HTML("", elem_id="wn-hotwords-status")
                 with gr.Row():
                     btn_start = gr.Button("● 녹음 시작", elem_id="btn-start", scale=2)
                     btn_stop  = gr.Button("■ 녹음 종료", elem_id="btn-stop", interactive=False, scale=2)
@@ -476,22 +491,6 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
 
                 # ── 왼쪽 패널 ──────────────────────────
                 with gr.Column(scale=1, min_width=260, elem_classes="wn-card"):
-
-                    with gr.Row(elem_classes="wn-hotwords-row"):
-                        hotwords_input = gr.Textbox(
-                            value=load_hotwords_as_csv(),
-                            label="전문 용어",
-                            placeholder="예: 현대모비스, ADAS, ECU, OTA",
-                            lines=1,
-                            scale=5,
-                            elem_id="wn-hotwords-input",
-                        )
-                        btn_save_hotwords = gr.Button(
-                            "저장", scale=0, min_width=50,
-                            elem_classes="wn-btn-secondary",
-                            elem_id="btn-save-hotwords",
-                        )
-                    hotwords_status = gr.HTML("", elem_id="wn-hotwords-status")
 
                     with gr.Row(elem_classes="wn-file-header"):
                         gr.HTML('<div class="wn-label" style="flex:1;margin:0">파일 목록</div>')
