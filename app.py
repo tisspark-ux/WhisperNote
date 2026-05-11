@@ -45,7 +45,8 @@ from handlers.category import (
     init_cat_ui, init_cat_with_last_state, sync_dropdowns_on_close, handle_open_folder)
 from handlers.files import (_render_file_list, load_folder_file_list,
     handle_upload_files, handle_remove_selected, handle_clear_file_list,
-    handle_file_selection, on_file_select)
+    handle_file_selection, on_file_select, handle_save_hotwords)
+from data.vocab import load_hotwords_as_csv
 from config import OLLAMA_MODEL, OUTPUTS_DIR
 from handlers.ai import (handle_transcribe, handle_correct, handle_load_transcripts,
     handle_summarize, handle_pipeline, handle_file_list_process,
@@ -185,6 +186,15 @@ _TRANSCRIPT_JS = """() => {
     }
   }).observe(document.body, {childList: true, subtree: true});
 
+  function _wnSetNowPlaying(src) {
+    var el = document.getElementById('wn-now-playing');
+    if (!el) return;
+    if (!src) { el.textContent = ''; return; }
+    var name = src.split('/').pop().split('?')[0];
+    try { name = decodeURIComponent(name); } catch(e) {}
+    el.textContent = name;
+  }
+
   function wnSeekAudio(seconds, partN) {
     var audio = document.getElementById('wn-audio-player');
     if (!audio) { console.warn('[WN] #wn-audio-player 없음'); return; }
@@ -206,48 +216,33 @@ _TRANSCRIPT_JS = """() => {
       }
     }
 
-    if (partN) {
-      var map = document.getElementById('wn-audio-map');
-      if (!map) {
-        console.warn('[WN] #wn-audio-map 없음 - 현재 파일에서 탐색');
-      } else {
-        var newSrc = map.getAttribute('data-part-' + partN);
-        if (!newSrc) {
-          console.warn('[WN] data-part-' + partN + ' 속성 없음 - 현재 파일에서 탐색');
-        } else {
-          // 초기 상태(_wnActivePart=0)에는 URL 비교로 현재 파트 판별
-          var needSwitch;
-          if (_wnActivePart > 0) {
-            needSwitch = _wnActivePart !== partN;
-          } else {
-            // currentSrc(절대URL) 또는 getAttribute('src')를 절대URL로 변환해 비교
-            var curAbs = audio.currentSrc || '';
-            if (!curAbs) {
-              var attr = audio.getAttribute('src');
-              try { if (attr) curAbs = new URL(attr, location.href).href; } catch(e) {}
-            }
-            try {
-              needSwitch = !!curAbs && curAbs !== new URL(newSrc, location.href).href;
-            } catch(e) {
-              needSwitch = true;
-            }
-          }
-          console.log('[WN] partN=' + partN + ' activePart=' + _wnActivePart +
-                      ' needSwitch=' + needSwitch + ' t=' + seconds);
-          if (needSwitch) {
-            _wnActivePart = partN;
-            audio.src = newSrc;
-            audio.addEventListener('loadedmetadata', function onMeta() {
-              audio.removeEventListener('loadedmetadata', onMeta);
-              _doSeek();
-            });
-            audio.load();
-            return;
-          }
-          _wnActivePart = partN;  // 초기 파트 번호 확정
-        }
-      }
+    if (!partN) {
+      // 파트 없는 단일 파일: 바로 탐색
+      _seekWhenReady();
+      return;
     }
+
+    var map = document.getElementById('wn-audio-map');
+    if (!map) { console.warn('[WN] #wn-audio-map 없음'); _seekWhenReady(); return; }
+    var newSrc = map.getAttribute('data-part-' + partN);
+    if (!newSrc) { console.warn('[WN] data-part-' + partN + ' 없음'); _seekWhenReady(); return; }
+
+    // _wnActivePart 가 다를 때만 소스 전환 (0 = 초기/리셋 → 항상 전환)
+    if (_wnActivePart !== partN) {
+      console.log('[WN] 파트 전환: ' + _wnActivePart + ' → ' + partN + '  t=' + seconds);
+      _wnActivePart = partN;
+      audio.src = newSrc;
+      _wnSetNowPlaying(newSrc);
+      audio.addEventListener('loadedmetadata', function onMeta() {
+        audio.removeEventListener('loadedmetadata', onMeta);
+        _doSeek();
+      });
+      audio.load();
+      return;
+    }
+
+    // 같은 파트: 소스 유지, 바로 탐색
+    console.log('[WN] 같은 파트 ' + partN + ' 탐색  t=' + seconds);
     _seekWhenReady();
   }
 
@@ -482,6 +477,22 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                 # ── 왼쪽 패널 ──────────────────────────
                 with gr.Column(scale=1, min_width=260, elem_classes="wn-card"):
 
+                    with gr.Row(elem_classes="wn-hotwords-row"):
+                        hotwords_input = gr.Textbox(
+                            value=load_hotwords_as_csv(),
+                            label="전문 용어",
+                            placeholder="예: 현대모비스, ADAS, ECU, OTA",
+                            lines=1,
+                            scale=5,
+                            elem_id="wn-hotwords-input",
+                        )
+                        btn_save_hotwords = gr.Button(
+                            "저장", scale=0, min_width=50,
+                            elem_classes="wn-btn-secondary",
+                            elem_id="btn-save-hotwords",
+                        )
+                    hotwords_status = gr.HTML("", elem_id="wn-hotwords-status")
+
                     with gr.Row(elem_classes="wn-file-header"):
                         gr.HTML('<div class="wn-label" style="flex:1;margin:0">파일 목록</div>')
                         file_count_label = gr.HTML("")
@@ -504,6 +515,10 @@ with gr.Blocks(css=CSS, title="WhisperNote") as demo:
                         value='<audio id="wn-audio-player" controls style="width:100%;outline:none;border-radius:6px"></audio>',
                         label="재생",
                         elem_id="wn-audio-preview",
+                    )
+                    audio_now_playing = gr.HTML(
+                        value='<div id="wn-now-playing"></div>',
+                        elem_id="wn-now-playing-wrap",
                     )
                     audio_map_display = gr.HTML(
                         value='<div id="wn-audio-map" style="display:none"></div>',
@@ -734,6 +749,7 @@ python app.py
             summary_output, summary_file_path,
             text_display, view_radio, display_file_path,
             audio_map_display,
+            audio_now_playing,
         ],
     ).then(lambda: gr.update(active=True), outputs=[chunk_poll_timer])
     btn_stop.click(
@@ -770,6 +786,13 @@ python app.py
     # 전사/교정/요약/파이프라인 공통 입력
     _cat_inputs = [cat_data, cat_l1, cat_l2, cat_l3]
 
+    # 전문 용어 저장
+    btn_save_hotwords.click(
+        handle_save_hotwords,
+        inputs=[hotwords_input],
+        outputs=[hotwords_status],
+    )
+
     # 파일 목록
     btn_fl_reload.click(
         load_folder_file_list,
@@ -796,6 +819,7 @@ python app.py
             summary_output, summary_file_path,
             text_display, view_radio, display_file_path,
             audio_map_display,
+            audio_now_playing,
         ],
     )
 

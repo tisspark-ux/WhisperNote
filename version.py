@@ -1,4 +1,4 @@
-__version__ = "1.0.95"
+__version__ = "1.1.2"
 
 # =============================================================================
 # WhisperNote — 프로그램 개요 (새 세션 시작 시 Claude가 빠르게 파악하는 용도)
@@ -96,6 +96,35 @@ __version__ = "1.0.95"
 # =============================================================================
 
 CHANGELOG = """
+v1.1.2 (2026-05-11)
+  - [기능] 오디오 플레이어 아래 현재 재생 파일명 표시
+    ▸ 파일 선택 시 서버에서 파일명 설정, 파트 전환 시 JS에서 즉시 업데이트
+    ▸ 파일목록 선택과 실제 재생 파일이 달라도 현재 상태 인지 가능
+
+v1.1.1 (2026-05-11)
+  - [수정] 녹음 중 화면 깜빡임: CSS .generating { opacity:1 } 로 Gradio loading overlay 억제
+    ▸ show_progress="hidden"은 상단 progress bar만 제어; 컴포넌트 overlay는 CSS로 해결
+  - [수정] 파트 WAV 전환 안 되는 버그 (녹음 중 / 파일 선택 모두)
+    ▸ 원인: URL 비교(_wnActivePart=0 초기 상태)가 불안정함
+            audio.currentSrc 미로딩, 경로 인코딩 차이, src 없는 경우 등 엣지케이스 다수
+    ▸ 수정: URL 비교 완전 제거 → _wnActivePart 번호만으로 전환 결정
+            (_wnActivePart != partN 이면 항상 전환; 0=초기/리셋 상태도 항상 전환)
+
+v1.1.0 (2026-05-10)
+  - [기능] 전문 용어 사전 기능 추가
+    파일:
+      prompts/vocab/hotwords.txt   — 자주 쓰는 용어 목록 (없으면 자동 생성)
+      prompts/vocab/corrections.txt — STT 오인식 교정 규칙 (없으면 자동 생성)
+    WhisperX 전사:
+      - build_whisper_prompt(): hotwords를 initial_prompt에 자동 삽입 (220자 제한)
+      - apply_corrections(): 전사 완료 후 corrections.txt 규칙을 세그먼트에 즉시 적용
+    Ollama 교정/요약:
+      - _inject_vocab_context(): corrections + hotwords 컨텍스트를 프롬프트에 동적 삽입
+      - LLM이 오인식 교정 규칙과 주요 용어를 참고해 더 정확한 교정/요약 생성
+    UI:
+      - 파일 목록 위에 전문 용어 1줄 입력 + 저장 버튼 추가
+      - hotwords.txt와 자동 동기화 (앱 시작 시 로드, 저장 버튼으로 갱신)
+
 v1.0.95 (2026-05-08)
   - [수정] 녹음 중 화면 깜빡임 제거
     ▸ 원인: chunk_poll_timer.tick 이 3초마다 실행되면서 출력 컴포넌트 전체에

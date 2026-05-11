@@ -5,6 +5,7 @@ from pathlib import Path
 
 from handlers.category import _out_dir
 from lib.transcript_view import render_html, audio_html, render_audio_map
+from data.vocab import save_hotwords_from_csv
 
 
 def _scan_audio_files(folder) -> list:
@@ -220,6 +221,10 @@ def on_file_select(selected_json: str, file_paths_val: list):
 
         part_map = _build_part_audio_map(audio_val)
 
+    now_playing = (
+        f'<div id="wn-now-playing">{Path(audio_val).name}</div>'
+        if audio_val else '<div id="wn-now-playing"></div>'
+    )
     return (
         audio_html(audio_val or ""), count_html, audio_val or "",
         t_text, t_path,
@@ -227,4 +232,14 @@ def on_file_select(selected_json: str, file_paths_val: list):
         s_text, s_path,
         render_html(display_text), view_val, display_path,
         render_audio_map(part_map),
+        now_playing,
     )
+
+
+def handle_save_hotwords(csv_text: str) -> str:
+    """UI hotwords 텍스트박스 → hotwords.txt 저장."""
+    try:
+        count = save_hotwords_from_csv(csv_text)
+        return f'<span style="color:#6ee7b7;font-size:.82rem">✓ {count}개 저장됨</span>'
+    except Exception as exc:
+        return f'<span style="color:#f87171;font-size:.82rem">저장 실패: {exc}</span>'

@@ -7,6 +7,11 @@ body, .gradio-container {
     font-family: 'Inter', 'Pretendard', -apple-system, sans-serif !important;
 }
 
+/* ── 폴링 타이머 로딩 깜빡임 억제 ── */
+/* Gradio는 서버 응답 대기 중 .generating 클래스로 컴포넌트 opacity를 낮춤. */
+/* 타이머 폴링(3초)마다 UI 전체가 어두워지는 현상을 방지한다. */
+.generating { opacity: 1 !important; }
+
 /* ── 헤더 ── */
 #wn-header {
     padding: 2.4rem 0 1.6rem;
@@ -300,6 +305,20 @@ body, .gradio-container {
 /* ── 오디오 플레이어 여백 축소 ── */
 #wn-audio-preview { margin-bottom: 0 !important; padding-bottom: 0 !important; }
 #wn-audio-preview > div { margin-bottom: 0 !important; padding-bottom: 0 !important; }
+
+/* ── 현재 재생 파일명 표시 ── */
+#wn-now-playing-wrap { margin-top: 0 !important; padding-top: 0 !important; }
+#wn-now-playing-wrap > div { margin-top: 0 !important; padding-top: 0 !important; }
+#wn-now-playing {
+    font-size: 0.73rem;
+    color: #6b7280;
+    font-family: 'JetBrains Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 2px 2px 4px;
+    min-height: 1em;
+}
 
 /* ── 전사/교정 인터랙티브 테이블 ── */
 .wn-tr-wrap {
