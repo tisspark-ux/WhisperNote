@@ -7,6 +7,11 @@ body, .gradio-container {
     font-family: 'Inter', 'Pretendard', -apple-system, sans-serif !important;
 }
 
+/* ── 폴링 타이머 로딩 깜빡임 억제 ── */
+/* Gradio는 서버 응답 대기 중 .generating 클래스로 컴포넌트 opacity를 낮춤. */
+/* 타이머 폴링(3초)마다 UI 전체가 어두워지는 현상을 방지한다. */
+.generating { opacity: 1 !important; }
+
 /* ── 헤더 ── */
 #wn-header {
     padding: 2.4rem 0 1.6rem;

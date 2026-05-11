@@ -228,7 +228,8 @@ _TRANSCRIPT_JS = """() => {
               try { if (attr) curAbs = new URL(attr, location.href).href; } catch(e) {}
             }
             try {
-              needSwitch = !!curAbs && curAbs !== new URL(newSrc, location.href).href;
+              // curAbs 없으면(audio src 없음) 무조건 전환
+              needSwitch = !curAbs || curAbs !== new URL(newSrc, location.href).href;
             } catch(e) {
               needSwitch = true;
             }
